@@ -508,17 +508,27 @@ function actualizarEstadisticas(estadisticas) {
 
 // Función para actualizar tabla de auxiliares
 function actualizarTablaAuxiliares(auxiliares) {
+    console.log('Actualizando tabla de auxiliares con datos:', auxiliares);
+    
     const tbody = document.querySelector('#tabla-auxiliares tbody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('No se encontró el tbody de la tabla de auxiliares');
+        return;
+    }
     
     tbody.innerHTML = '';
     
     if (!Array.isArray(auxiliares) || auxiliares.length === 0) {
+        console.warn('No hay auxiliares para mostrar');
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay datos de auxiliares disponibles</td></tr>';
         return;
     }
     
-    auxiliares.forEach(auxiliar => {
+    console.log(`Mostrando ${auxiliares.length} auxiliares en la tabla`);
+    
+    auxiliares.forEach((auxiliar, index) => {
+        console.log(`Procesando auxiliar ${index}:`, auxiliar);
+        
         const progreso = auxiliar.total_asignadas > 0 
             ? Math.round((auxiliar.visitas_realizadas / auxiliar.total_asignadas) * 100) 
             : 0;
@@ -543,6 +553,7 @@ function actualizarTablaAuxiliares(auxiliares) {
         tbody.appendChild(row);
     });
 }
+
 
 // Función para actualizar gráficos
 function actualizarGraficos(datosDiarios, datosSedes) {
