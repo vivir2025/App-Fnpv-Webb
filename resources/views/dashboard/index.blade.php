@@ -1,4 +1,3 @@
-<!-- resources/views/dashboard/index.blade.php -->
 @extends('layouts.app')
 
 @section('title', 'Dashboard')
@@ -50,7 +49,6 @@
                 <h6 class="text-muted mb-4">Bienvenido, {{ session('usuario')['nombre'] ?? session('usuario') }}</h6>
                 
                 <!-- Selector de Sedes -->
-                <!-- Modificar la sección de botones de sedes en dashboard.index.blade.php -->
                 <div class="sede-selector mb-4 shadow-sm">
                     <h6 class="text-success mb-3"><i class="fas fa-map-marker-alt me-2"></i>Seleccione una sede para visualizar datos:</h6>
                     <div class="d-flex flex-wrap" id="sede-buttons">
@@ -166,7 +164,6 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-
 <script>
 // Variables globales para gestionar el mapa y gráficos
 let map = null;
@@ -212,6 +209,7 @@ function cargarDatosPorSede(sedeId) {
     })
     .then(data => {
         console.log('Datos recibidos:', data);
+        depurarDatosRecibidos(data); // Función de depuración
         ocultarIndicadorCarga();
         
         // Verificar estructura de datos
@@ -236,6 +234,32 @@ function cargarDatosPorSede(sedeId) {
         ocultarIndicadorCarga();
         mostrarError(`Error al cargar datos: ${error.message}. Por favor, intente nuevamente.`);
     });
+}
+
+// Función de depuración para verificar los datos recibidos
+function depurarDatosRecibidos(data) {
+    console.group('Depuración de datos recibidos');
+    console.log('Estructura completa:', data);
+    
+    // Verificar auxiliares
+    if (data.auxiliares && Array.isArray(data.auxiliares)) {
+        console.log(`Auxiliares (${data.auxiliares.length}):`);
+        data.auxiliares.forEach((aux, i) => {
+            console.log(`Auxiliar ${i+1}:`, {
+                id: aux.id,
+                nombre: aux.nombre,
+                sede: aux.sede,
+                // Verificar tipo de dato de sede
+                'tipo de sede': typeof aux.sede,
+                // Si es objeto, mostrar sus propiedades
+                'propiedades de sede': typeof aux.sede === 'object' && aux.sede !== null ? Object.keys(aux.sede) : 'N/A'
+            });
+        });
+    } else {
+        console.warn('No hay datos de auxiliares o no es un array');
+    }
+    
+    console.groupEnd();
 }
 
 // Función para mostrar indicador de carga
@@ -506,7 +530,7 @@ function actualizarEstadisticas(estadisticas) {
     document.getElementById('promedio-visitas').textContent = estadisticas.promedio_diario || 0;
 }
 
-// Función para actualizar tabla de auxiliares
+// Función actualizada para manejar la tabla de auxiliares
 function actualizarTablaAuxiliares(auxiliares) {
     console.log('Actualizando tabla de auxiliares con datos:', auxiliares);
     
@@ -527,19 +551,39 @@ function actualizarTablaAuxiliares(auxiliares) {
     console.log(`Mostrando ${auxiliares.length} auxiliares en la tabla`);
     
     auxiliares.forEach((auxiliar, index) => {
+        // Depuración detallada
         console.log(`Procesando auxiliar ${index}:`, auxiliar);
         
-        const progreso = auxiliar.total_asignadas > 0 
-            ? Math.round((auxiliar.visitas_realizadas / auxiliar.total_asignadas) * 100) 
+        // Extraer nombre de auxiliar de forma segura
+        let nombreAuxiliar = 'Sin nombre';
+        if (typeof auxiliar.nombre === 'string') {
+            nombreAuxiliar = auxiliar.nombre;
+        }
+        
+        // Extraer nombre de sede de forma segura
+        let nombreSede = 'Sin sede';
+        if (typeof auxiliar.sede === 'string') {
+            nombreSede = auxiliar.sede;
+        } else if (typeof auxiliar.sede === 'object' && auxiliar.sede !== null) {
+            nombreSede = auxiliar.sede.nombresede || auxiliar.sede.nombre || 'Sede sin nombre';
+        }
+        
+        // Valores para las estadísticas con manejo de nulos
+        const visitasRealizadas = parseInt(auxiliar.visitas_realizadas || 0);
+        const visitasPendientes = parseInt(auxiliar.visitas_pendientes || 0);
+        const totalAsignadas = parseInt(auxiliar.total_asignadas || 0) || (visitasRealizadas + visitasPendientes);
+        
+        const progreso = totalAsignadas > 0 
+            ? Math.round((visitasRealizadas / totalAsignadas) * 100) 
             : 0;
         
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${auxiliar.nombre || 'Sin nombre'}</td>
-            <td>${auxiliar.sede || 'Sin sede'}</td>
-            <td><span class="badge bg-success">${auxiliar.visitas_realizadas || 0}</span></td>
-            <td><span class="badge bg-warning">${auxiliar.visitas_pendientes || 0}</span></td>
-            <td><span class="badge bg-info">${auxiliar.total_asignadas || 0}</span></td>
+            <td>${nombreAuxiliar}</td>
+            <td>${nombreSede}</td>
+            <td><span class="badge bg-success">${visitasRealizadas}</span></td>
+            <td><span class="badge bg-warning">${visitasPendientes}</span></td>
+            <td><span class="badge bg-info">${totalAsignadas}</span></td>
             <td>
                 <div class="progress" style="height: 20px;">
                     <div class="progress-bar bg-success" role="progressbar" 
@@ -553,7 +597,6 @@ function actualizarTablaAuxiliares(auxiliares) {
         tbody.appendChild(row);
     });
 }
-
 
 // Función para actualizar gráficos
 function actualizarGraficos(datosDiarios, datosSedes) {
@@ -653,8 +696,7 @@ function actualizarGraficos(datosDiarios, datosSedes) {
 // Inicialización mejorada del dashboard
 document.addEventListener('DOMContentLoaded', function() {
     console.log("=== INICIALIZANDO DASHBOARD ===");
-    
-    // Verificar que los elementos necesarios existen
+        // Verificar que los elementos necesarios existen
     const elementosRequeridos = [
         '#map',
         '#total-pacientes', 
@@ -696,7 +738,79 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log("=== DASHBOARD INICIALIZADO CORRECTAMENTE ===");
 });
+</script>
 
-
+<!-- Script adicional para manejar la tabla de auxiliares de manera más robusta -->
+<script>
+// Sobrescribir la función actualizarTablaAuxiliares para manejar cualquier formato de datos
+document.addEventListener('DOMContentLoaded', function() {
+    // La función original sigue existiendo, pero la reemplazamos con esta versión más robusta
+    window.actualizarTablaAuxiliares = function(auxiliares) {
+        console.log('Función sobrescrita - Actualizando tabla con:', auxiliares);
+        
+        const tbody = document.querySelector('#tabla-auxiliares tbody');
+        if (!tbody) {
+            console.error('No se encontró el tbody de la tabla de auxiliares');
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        
+        if (!Array.isArray(auxiliares) || auxiliares.length === 0) {
+            console.warn('No hay auxiliares para mostrar');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay datos de auxiliares disponibles</td></tr>';
+            return;
+        }
+        
+        console.log(`Mostrando ${auxiliares.length} auxiliares en la tabla`);
+        
+        auxiliares.forEach((auxiliar, index) => {
+            // Depuración detallada
+            console.log(`Procesando auxiliar ${index}:`, auxiliar);
+            
+            // Extraer nombre de auxiliar de forma segura
+            let nombreAuxiliar = 'Sin nombre';
+            if (typeof auxiliar.nombre === 'string') {
+                nombreAuxiliar = auxiliar.nombre;
+            }
+            
+            // Extraer nombre de sede de forma segura
+            let nombreSede = 'Sin sede';
+            if (typeof auxiliar.sede === 'string') {
+                nombreSede = auxiliar.sede;
+            } else if (typeof auxiliar.sede === 'object' && auxiliar.sede !== null) {
+                nombreSede = auxiliar.sede.nombresede || auxiliar.sede.nombre || 'Sede sin nombre';
+            }
+            
+            // Valores para las estadísticas con manejo de nulos
+            const visitasRealizadas = parseInt(auxiliar.visitas_realizadas || 0);
+            const visitasPendientes = parseInt(auxiliar.visitas_pendientes || 0);
+            const totalAsignadas = parseInt(auxiliar.total_asignadas || 0) || (visitasRealizadas + visitasPendientes);
+            
+            const progreso = totalAsignadas > 0 
+                ? Math.round((visitasRealizadas / totalAsignadas) * 100) 
+                : 0;
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${nombreAuxiliar}</td>
+                <td>${nombreSede}</td>
+                <td><span class="badge bg-success">${visitasRealizadas}</span></td>
+                <td><span class="badge bg-warning">${visitasPendientes}</span></td>
+                <td><span class="badge bg-info">${totalAsignadas}</span></td>
+                <td>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: ${progreso}%" 
+                             aria-valuenow="${progreso}" aria-valuemin="0" aria-valuemax="100">
+                            ${progreso}%
+                        </div>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    };
+});
 </script>
 @endsection

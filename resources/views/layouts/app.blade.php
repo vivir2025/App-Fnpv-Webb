@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Sistema de Visitas Domiciliarias')</title>
+    <title>@yield('title', 'Sistema de Visitas App-Fnpv Web')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -311,7 +311,7 @@
                     <img src="https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png" alt="Logo">
                 </div>
                 <div class="mt-2">
-                    <small class="text-white-50">Sistema de Visitas</small>
+                    <small class="text-white-50">Sistema App-Fnpv Web</small>
                 </div>
             </div>
             
@@ -329,6 +329,14 @@
                         <span>Visitas Domiciliarias</span>
                     </a>
                 </li>
+                <li class="nav-item {{ request()->routeIs('laboratorio.*') ? 'menu-open' : '' }}">
+                    <a class="nav-link {{ request()->routeIs('laboratorio.*') ? 'active' : '' }}" href="{{ route('laboratorio.index') }}">
+                        <i class="fas fa-vial"></i>
+                        <span>Envío de Muestras</span>
+                    </a>
+                </li>
+
+
                 <!-- Puedes agregar más elementos de navegación aquí -->
                 <li class="nav-item">
                     <a class="nav-link" href="#" onclick="return false;">

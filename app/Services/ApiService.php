@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ApiService
 {
@@ -17,25 +18,49 @@ class ApiService
 
     public function get($endpoint, $params = [])
     {
-        return Http::withToken($this->token)
-            ->get($this->baseUrl . '/' . $endpoint, $params);
+        try {
+            return Http::withToken($this->token)
+                ->timeout(30)
+                ->get($this->baseUrl . '/' . $endpoint, $params);
+        } catch (\Exception $e) {
+            Log::error("Error en GET {$endpoint}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function post($endpoint, $data = [])
     {
-        return Http::withToken($this->token)
-            ->post($this->baseUrl . '/' . $endpoint, $data);
+        try {
+            return Http::withToken($this->token)
+                ->timeout(30)
+                ->post($this->baseUrl . '/' . $endpoint, $data);
+        } catch (\Exception $e) {
+            Log::error("Error en POST {$endpoint}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function put($endpoint, $data = [])
     {
-        return Http::withToken($this->token)
-            ->put($this->baseUrl . '/' . $endpoint, $data);
+        try {
+            return Http::withToken($this->token)
+                ->timeout(30)
+                ->put($this->baseUrl . '/' . $endpoint, $data);
+        } catch (\Exception $e) {
+            Log::error("Error en PUT {$endpoint}: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function delete($endpoint)
     {
-        return Http::withToken($this->token)
-            ->delete($this->baseUrl . '/' . $endpoint);
+        try {
+            return Http::withToken($this->token)
+                ->timeout(30)
+                ->delete($this->baseUrl . '/' . $endpoint);
+        } catch (\Exception $e) {
+            Log::error("Error en DELETE {$endpoint}: " . $e->getMessage());
+            throw $e;
+        }
     }
 }

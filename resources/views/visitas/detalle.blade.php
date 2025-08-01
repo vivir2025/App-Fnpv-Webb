@@ -4,6 +4,7 @@
 
 @section('styles')
 <style>
+    
     .info-card {
         margin-bottom: 20px;
     }
@@ -43,11 +44,17 @@
     <div class="col-12 mb-3">
         <div class="d-flex justify-content-between align-items-center">
             <h4>Detalle de Visita Domiciliaria</h4>
-            <a href="{{ url()->previous() }}" class="btn btn-secondary btn-sm">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ route('visitas.print', $visita['id']) }}" class="btn btn-danger btn-sm">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </a>
+                <a href="{{ url()->previous() }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
         </div>
     </div>
+
 
     <div class="col-md-6">
         <div class="card shadow-sm info-card">
@@ -125,7 +132,7 @@
             </div>
         </div>
 
-        @if(isset($visita['medicamentos']) && is_array($visita['medicamentos']) && count($visita['medicamentos']) > 0)
+       @if(isset($visita['medicamentos']) && is_array($visita['medicamentos']) && count($visita['medicamentos']) > 0)
         <div class="card shadow-sm info-card">
             <div class="info-title">
                 <i class="fas fa-pills"></i> Medicamentos
@@ -134,7 +141,7 @@
                 <ul class="list-group">
                     @foreach($visita['medicamentos'] as $medicamento)
                     <li class="list-group-item">
-                        <strong>{{ is_array($medicamento) && isset($medicamento['nombre']) ? $medicamento['nombre'] : 'Medicamento sin nombre' }}</strong>
+                        <strong>{{ is_array($medicamento) && isset($medicamento['nombmedicamento']) ? $medicamento['nombmedicamento'] : 'Medicamento sin nombre' }}</strong>
                         @if(is_array($medicamento) && isset($medicamento['pivot']) && is_array($medicamento['pivot']) && isset($medicamento['pivot']['indicaciones']))
                             <p class="mb-0 text-muted">{{ $medicamento['pivot']['indicaciones'] }}</p>
                         @endif
@@ -161,18 +168,31 @@
             </div>
             @endif
 
-            @if(isset($visita['foto_riesgo_url']) && $visita['foto_riesgo_url'])
+            @if(isset($visita['riesgo_fotografico_url']) && $visita['riesgo_fotografico_url'])
             <div class="col-md-6 mb-3">
                 <div class="card shadow-sm info-card">
                     <div class="info-title">
                         <i class="fas fa-camera"></i> Foto de Riesgo
                     </div>
                     <div class="info-content text-center">
-                        <img src="{{ $visita['foto_riesgo_url'] }}" alt="Foto de riesgo" class="foto-riesgo-img">
+                        <div class="text-center mb-2">
+                            <img src="{{ $visita['riesgo_fotografico_url'] }}" alt="Foto de riesgo" 
+                                class="img-fluid rounded" 
+                                style="max-height: 250px; object-fit: contain;">
+                        </div>
+                        
+                        <!-- Controles para la imagen -->
+                        <div class="d-flex justify-content-center mt-2">
+                            <a href="{{ $visita['riesgo_fotografico_url'] }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt"></i> Ver original
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
             @endif
+
+
         </div>
     </div>
 </div>

@@ -78,4 +78,48 @@ class VisitaController extends Controller
                 ->withErrors(['error' => 'Error al obtener detalles de la visita.']);
         }
     }
+
+    public function printView($id)
+    {
+        try {
+            // Consumir la API para obtener detalles de una visita
+            $response = $this->apiService->get('visitas/' . $id);
+            
+            if ($response->successful()) {
+                $visita = $response->json()['data'] ?? null;
+                
+                if ($visita) {
+                    return view('pdf_visita', ['visita' => $visita]);
+                }
+            }
+            
+            return redirect()->route('visitas.buscar')
+                ->withErrors(['error' => 'No se encontró la visita solicitada para imprimir.']);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener visita para impresión: ' . $e->getMessage());
+            return redirect()->route('visitas.buscar')
+                ->withErrors(['error' => 'Error al preparar la vista de impresión.']);
+        }
+    }
+
+   public function generarPDF($id)
+    {
+        // Obtén los datos de la visita
+        $visita = Visita::with('medicamentos')->findOrFail($id);
+        
+        // Convierte el modelo a un array para mantener consistencia con tu vista actual
+        $visitaArray = $visita->toArray();
+        
+        // Genera el PDF
+        $pdf = PDF::loadView('pdf_visita', ['visita' => $visitaArray]);
+        
+        // Opcional: configura el tamaño del papel
+        $pdf->setPaper('a4', 'portrait');
+        
+        // Descarga el PDF con un nombre específico
+        return $pdf->download('visita_domiciliaria_' . $visita->id . '.pdf');
+        
+        // Alternativa: muestra el PDF en el navegador
+        // return $pdf->stream('visita_domiciliaria_' . $visita->id . '.pdf');
+    }
 }

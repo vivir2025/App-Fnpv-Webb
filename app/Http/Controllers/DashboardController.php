@@ -242,122 +242,209 @@ class DashboardController extends Controller
         return $resultado;
     }
 
-    private function prepararDatosAuxiliares($visitas, $sedeId)
+   private function prepararDatosAuxiliares($visitas, $sedeId)
     {
         try {
-            // Intentar obtener auxiliares usando el endpoint específico
-            $response = $this->apiService->get('auxiliares');
+            // Obtener todas las sedes para mapeo de IDs a nombres
+            $mapaSedes = [];
+            $responseAllSedes = $this->apiService->get('sedes');
+            if ($responseAllSedes->successful()) {
+                $sedes = $responseAllSedes->json();
+                foreach ($sedes as $sede) {
+                    if (isset($sede['id'])) {
+                        $mapaSedes[$sede['id']] = isset($sede['nombresede']) ? $sede['nombresede'] : 
+                                                (isset($sede['nombre']) ? $sede['nombre'] : "Sede {$sede['id']}");
+                    }
+                }
+            }
             
-            // Verificar si la respuesta fue exitosa y contiene datos JSON válidos
-            if ($response->successful() && $response->json() !== null) {
-                $auxiliares = $response->json();
-                
-                // Verificar que auxiliares sea un array
-                if (!is_array($auxiliares)) {
-                    Log::error('La respuesta de auxiliares no es un array');
+            // Obtener auxiliares
+            $response = $this->apiService->get('auxiliares');
+            if (!$response->successful()) {
+                $response = $this->apiService->get('usuarios');
+                if (!$response->successful()) {
                     return $this->generarAuxiliaresPredeterminados($visitas);
                 }
-            } else {
-                // Si falla, intentar con el endpoint general de usuarios
-                Log::warning('Endpoint de auxiliares no disponible, intentando con usuarios');
-                $response = $this->apiService->get('usuarios');
                 
-                if ($response->successful() && $response->json() !== null) {
-                    $usuarios = $response->json();
+                $usuarios = $response->json();
+                $auxiliares = collect($usuarios)->filter(function($usuario) {
+                    return isset($usuario['rol']) && (
+                        strtolower($usuario['rol']) === 'aux' || 
+                        strtolower($usuario['rol']) === 'auxiliar'
+                    );
+                })->values()->all();
+            } else {
+                $auxiliares = $response->json();
+            }
+            
+            // Filtrar por sede si es necesario
+            if ($sedeId !== 'todas') {
+                $auxiliares = collect($auxiliares)->filter(function($auxiliar) use ($sedeId) {
+                    $auxSedeId = isset($auxiliar['sede_id']) ? $auxiliar['sede_id'] : 
+                                (isset($auxiliar['idsede']) ? $auxiliar['idsede'] : null);
                     
-                    // Verificar que usuarios sea un array
-                    if (!is_array($usuarios)) {
-                        Log::error('La respuesta de usuarios no es un array');
-                        return $this->generarAuxiliaresPredeterminados($visitas);
+                    return $auxSedeId == $sedeId;
+                })->values()->all();
+            }
+            
+            if (empty($auxiliares)) {
+                return $this->generarAuxiliaresPredeterminados($visitas);
+            }
+            
+            // Contar visitas por usuario
+            $visitasPorUsuario = [];
+            foreach ($visitas as $visita) {
+                $idUsuario = isset($visita['usuario_id']) ? $visita['usuario_id'] : 
+                            (isset($visita['idusuario']) ? $visita['idusuario'] : null);
+                
+                if ($idUsuario) {
+                    if (!isset($visitasPorUsuario[$idUsuario])) {
+                        $visitasPorUsuario[$idUsuario] = [
+                            'realizadas' => 0,
+                            'pendientes' => 0
+                        ];
                     }
                     
-                    // Filtrar solo auxiliares
-                    $auxiliares = collect($usuarios)->filter(function($usuario) {
-                        return isset($usuario['rol']) && (
-                            strtolower($usuario['rol']) === 'aux' || 
-                            strtolower($usuario['rol']) === 'auxiliar'
-                        );
-                    })->values()->all();
-                } else {
-                    Log::error('Error al obtener usuarios: ' . $response->status());
-                    return $this->generarAuxiliaresPredeterminados($visitas);
+                    if (isset($visita['estado'])) {
+                        $estado = strtolower($visita['estado']);
+                        if (in_array($estado, ['completada', 'realizada', 'finalizada'])) {
+                            $visitasPorUsuario[$idUsuario]['realizadas']++;
+                        } elseif (in_array($estado, ['pendiente', 'programada'])) {
+                            $visitasPorUsuario[$idUsuario]['pendientes']++;
+                        }
+                    } else {
+                        $visitasPorUsuario[$idUsuario]['realizadas']++;
+                    }
                 }
+            }
+            
+            // Formatear para la tabla
+            $resultado = [];
+            foreach ($auxiliares as $auxiliar) {
+                // Obtener ID de usuario
+                $idUsuario = isset($auxiliar['id']) ? $auxiliar['id'] : 
+                            (isset($auxiliar['usuario_id']) ? $auxiliar['usuario_id'] : null);
+                
+                if (!$idUsuario) continue;
+                
+                // Obtener ID de sede
+                $sedeId = isset($auxiliar['sede_id']) ? $auxiliar['sede_id'] : 
+                        (isset($auxiliar['idsede']) ? $auxiliar['idsede'] : null);
+                
+                // Obtener nombre de sede
+                $nombreSede = 'Sin sede asignada';
+                
+                // Primero intentar obtener del objeto sede si existe
+                if (isset($auxiliar['sede']) && is_array($auxiliar['sede'])) {
+                    $nombreSede = isset($auxiliar['sede']['nombresede']) ? $auxiliar['sede']['nombresede'] : 
+                                (isset($auxiliar['sede']['nombre']) ? $auxiliar['sede']['nombre'] : $nombreSede);
+                } 
+                // Si no hay objeto sede pero hay ID de sede, buscar en el mapa de sedes
+                elseif ($sedeId && isset($mapaSedes[$sedeId])) {
+                    $nombreSede = $mapaSedes[$sedeId];
+                }
+                
+                // Estadísticas
+                $visitasRealizadas = isset($visitasPorUsuario[$idUsuario]) ? $visitasPorUsuario[$idUsuario]['realizadas'] : 0;
+                $visitasPendientes = isset($visitasPorUsuario[$idUsuario]) ? $visitasPorUsuario[$idUsuario]['pendientes'] : 3;
+                $totalAsignadas = $visitasRealizadas + $visitasPendientes;
+                
+                $resultado[] = [
+                    'id' => $idUsuario,
+                    'nombre' => isset($auxiliar['nombre']) ? $auxiliar['nombre'] : "Usuario $idUsuario",
+                    'sede' => $nombreSede, // Siempre enviamos un string, nunca un objeto o ID
+                    'visitas_realizadas' => $visitasRealizadas,
+                    'visitas_pendientes' => $visitasPendientes,
+                    'total_asignadas' => $totalAsignadas,
+                    'porcentaje_completado' => $totalAsignadas > 0 
+                        ? round(($visitasRealizadas / $totalAsignadas) * 100, 1) 
+                        : 0
+                ];
+            }
+            
+            // Ordenar por número de visitas realizadas (descendente)
+            usort($resultado, function($a, $b) {
+                return $b['visitas_realizadas'] - $a['visitas_realizadas'];
+            });
+            
+            return $resultado;
+        } catch (\Exception $e) {
+            Log::error('Error en prepararDatosAuxiliares: ' . $e->getMessage());
+            return $this->generarAuxiliaresPredeterminados($visitas);
+        }
+    }
+
+    private function obtenerTodasLasSedes()
+    {
+        try {
+            $response = $this->apiService->get('sedes');
+            if ($response->successful() && $response->json() !== null) {
+                $sedes = $response->json();
+                
+                // Verificar que sedes sea un array
+                if (!is_array($sedes)) {
+                    Log::error('La respuesta de sedes no es un array');
+                    return [];
+                }
+                
+                // Crear un mapa de ID => sede
+                $mapaSedes = [];
+                foreach ($sedes as $sede) {
+                    if (isset($sede['id'])) {
+                        $mapaSedes[$sede['id']] = $sede;
+                    }
+                }
+                
+                return $mapaSedes;
             }
         } catch (\Exception $e) {
-            Log::error('Error al obtener auxiliares: ' . $e->getMessage());
-            return $this->generarAuxiliaresPredeterminados($visitas);
+            Log::error('Error al obtener todas las sedes: ' . $e->getMessage());
         }
         
-        // Filtrar por sede si es necesario
-        if ($sedeId !== 'todas') {
-            $auxiliares = collect($auxiliares)->filter(function($auxiliar) use ($sedeId) {
-                return isset($auxiliar['sede_id']) && $auxiliar['sede_id'] == $sedeId;
-            })->values()->all();
-        }
-        
-        // Si después del filtrado no hay auxiliares, usar los predeterminados
-        if (empty($auxiliares)) {
-            return $this->generarAuxiliaresPredeterminados($visitas);
-        }
-        
-        // Contar visitas por usuario
-        $visitasPorUsuario = [];
-        foreach ($visitas as $visita) {
-            $idUsuario = isset($visita['usuario_id']) ? $visita['usuario_id'] : null;
-            if (!$idUsuario && isset($visita['idusuario'])) {
-                $idUsuario = $visita['idusuario']; // Compatibilidad con diferentes formatos
-            }
+        return [];
+    }
+    private function obtenerInfoSede($auxiliar, $mapaSedes)
+    {
+        // Caso 1: Sede incluida como objeto completo
+        if (isset($auxiliar['sede']) && is_array($auxiliar['sede'])) {
+            $nombreSede = isset($auxiliar['sede']['nombresede']) ? $auxiliar['sede']['nombresede'] : 
+                        (isset($auxiliar['sede']['nombre']) ? $auxiliar['sede']['nombre'] : 'Sin nombre');
             
-            if ($idUsuario) {
-                if (!isset($visitasPorUsuario[$idUsuario])) {
-                    $visitasPorUsuario[$idUsuario] = 0;
-                }
-                $visitasPorUsuario[$idUsuario]++;
-            }
-        }
-        
-        // Formatear para la tabla
-        $resultado = [];
-        foreach ($auxiliares as $auxiliar) {
-            // Manejar diferentes formatos de ID
-            $idUsuario = isset($auxiliar['id']) ? $auxiliar['id'] : null;
-            if (!$idUsuario && isset($auxiliar['usuario_id'])) {
-                $idUsuario = $auxiliar['usuario_id'];
-            }
+            $idSede = isset($auxiliar['sede']['id']) ? $auxiliar['sede']['id'] : 
+                    (isset($auxiliar['sede_id']) ? $auxiliar['sede_id'] : null);
             
-            if (!$idUsuario) {
-                continue; // Saltar auxiliares sin ID
-            }
-            
-            $visitasRealizadas = isset($visitasPorUsuario[$idUsuario]) ? $visitasPorUsuario[$idUsuario] : 0;
-            
-            // Calcular visitas pendientes (puedes ajustar esta lógica según tus necesidades)
-            $visitasPendientes = $this->calcularVisitasPendientes($auxiliar, $visitas);
-            $totalAsignadas = $visitasRealizadas + $visitasPendientes;
-            
-            // Obtener nombre de sede
-            $nombreSede = $this->obtenerNombreSede($auxiliar);
-            
-            $resultado[] = [
-                'id' => $idUsuario,
-                'nombre' => isset($auxiliar['nombre']) ? $auxiliar['nombre'] : "Usuario $idUsuario",
-                'sede' => $nombreSede,
-                'visitas_realizadas' => $visitasRealizadas,
-                'visitas_pendientes' => $visitasPendientes,
-                'total_asignadas' => $totalAsignadas,
-                'porcentaje_completado' => $totalAsignadas > 0 
-                    ? round(($visitasRealizadas / $totalAsignadas) * 100, 1) 
-                    : 0
+            return [
+                'id' => $idSede,
+                'nombre' => $nombreSede
             ];
         }
         
-        // Ordenar por número de visitas realizadas (descendente)
-        usort($resultado, function($a, $b) {
-            return $b['visitas_realizadas'] - $a['visitas_realizadas'];
-        });
+        // Caso 2: Solo ID de sede disponible
+        $sedeId = null;
+        if (isset($auxiliar['sede_id'])) {
+            $sedeId = $auxiliar['sede_id'];
+        } elseif (isset($auxiliar['idsede'])) {
+            $sedeId = $auxiliar['idsede'];
+        }
         
-        return $resultado;
+        if ($sedeId && isset($mapaSedes[$sedeId])) {
+            $sede = $mapaSedes[$sedeId];
+            $nombreSede = isset($sede['nombresede']) ? $sede['nombresede'] : 
+                        (isset($sede['nombre']) ? $sede['nombre'] : "Sede $sedeId");
+            
+            return [
+                'id' => $sedeId,
+                'nombre' => $nombreSede
+            ];
+        }
+        
+        // Caso 3: No hay información de sede
+        return [
+            'id' => null,
+            'nombre' => 'Sin sede asignada'
+        ];
     }
+
 
     private function calcularVisitasPendientes($auxiliar, $visitas)
     {
