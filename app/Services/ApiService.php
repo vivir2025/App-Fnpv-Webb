@@ -63,4 +63,8 @@ class ApiService
             throw $e;
         }
     }
+    public function getEnviosPorFechaSalida($fecha)
+    {
+        return $this->get("envio-muestras/fecha-salida/{$fecha}");
+    }
 }

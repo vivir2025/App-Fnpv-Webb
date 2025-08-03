@@ -45,24 +45,38 @@ Route::middleware(ApiAuthentication::class)->group(function () {
         Route::get('/{id}/pdf', [VisitaController::class, 'generarPDF'])->name('pdf');
     });
     
-Route::prefix('laboratorio')->name('laboratorio.')->group(function () {
-    Route::get('/', [EnvioMuestraWebController::class, 'index'])->name('index');
-    Route::get('/sede/{sedeId}', [EnvioMuestraWebController::class, 'listarPorSede'])->name('sede');
-    Route::get('/ver/{id}', [EnvioMuestraWebController::class, 'ver'])->name('ver');
-    Route::get('/crear', [EnvioMuestraWebController::class, 'crear'])->name('crear');
-    Route::post('/guardar', [EnvioMuestraWebController::class, 'guardar'])->name('guardar');
-    Route::get('/editar/{id}', [EnvioMuestraWebController::class, 'editar'])->name('editar');
-    Route::put('/actualizar/{id}', [EnvioMuestraWebController::class, 'actualizar'])->name('actualizar');
-    Route::delete('/eliminar/{id}', [EnvioMuestraWebController::class, 'eliminar'])->name('eliminar');
-    Route::post('/buscar-paciente', [EnvioMuestraWebController::class, 'buscarPaciente'])->name('buscar-paciente');
-    Route::get('/detalle-pdf/{id}', [EnvioMuestraWebController::class, 'generarPdf'])->name('detallePdf');
-    
-});
+    Route::prefix('laboratorio')->name('laboratorio.')->group(function () {
+        Route::get('/', [EnvioMuestraWebController::class, 'index'])->name('index');
+        Route::get('/sede/{sedeId}', [EnvioMuestraWebController::class, 'listarPorSede'])->name('sede');
+        Route::get('/ver/{id}', [EnvioMuestraWebController::class, 'ver'])->name('ver');
+        Route::get('/crear', [EnvioMuestraWebController::class, 'crear'])->name('crear');
+        Route::post('/guardar', [EnvioMuestraWebController::class, 'guardar'])->name('guardar');
+        Route::get('/editar/{id}', [EnvioMuestraWebController::class, 'editar'])->name('editar');
+        Route::put('/actualizar/{id}', [EnvioMuestraWebController::class, 'actualizar'])->name('actualizar');
+        Route::delete('/eliminar/{id}', [EnvioMuestraWebController::class, 'eliminar'])->name('eliminar');
+        Route::post('/buscar-paciente', [EnvioMuestraWebController::class, 'buscarPaciente'])->name('buscar-paciente');
+        Route::get('/detalle-pdf/{id}', [EnvioMuestraWebController::class, 'generarPdf'])->name('detallePdf');
+        Route::get('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
+    });
+ 
     // Cerrar sesión
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-});
+    });
 
-// Ruta para manejar errores 404 (opcional)
-Route::fallback(function () {
-    return response()->view('errors.404', [], 404);
-});
+    // Ruta para manejar errores 404 (opcional)
+    Route::fallback(function () {
+            return response()->view('errors.404', [], 404);
+        });
+
+        Route::get('/test-email', function () {
+        try {
+            Mail::raw('Prueba de correo desde Laravel', function($message) {
+                $message->to('tecnologia@nacerparavivir.org')
+                        ->subject('Prueba de correo');
+            });
+            
+            return 'Correo enviado correctamente';
+        } catch (\Exception $e) {
+            return 'Error: ' . $e->getMessage();
+        }
+    });

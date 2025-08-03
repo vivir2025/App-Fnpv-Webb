@@ -63,6 +63,9 @@
                                                 <a href="{{ route('laboratorio.ver', $envio['id']) }}" class="btn btn-sm btn-info me-1">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
+                                                 <a href="{{ route('laboratorio.enviarEmail', $envio['id']) }}" class="btn btn-sm btn-primary me-1" title="Enviar por email">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
                                                 <form action="{{ route('laboratorio.eliminar', $envio['id']) }}" method="POST" class="d-inline">
                                                     @csrf
                                                     @method('DELETE')
