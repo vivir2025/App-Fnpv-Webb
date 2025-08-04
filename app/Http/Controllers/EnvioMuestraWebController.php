@@ -67,24 +67,6 @@ class EnvioMuestraWebController extends Controller
             return redirect()->route('laboratorio.index');
         }
     }
-
-    // public function ver($id)
-    // {
-    //     try {
-    //         $response = $this->apiService->get("envio-muestras/{$id}");
-    //         $envio = $response->successful() ? $response->json() : null;
-            
-    //         if (!$envio) {
-    //             return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
-    //         }
-            
-    //         return view('laboratorio.ver', compact('envio'));
-    //     } catch (\Exception $e) {
-    //         Log::error('Error al ver envío: ' . $e->getMessage());
-    //         return redirect()->route('laboratorio.index')->with('error', 'Error al cargar el envío');
-    //     }
-    // }
-
         public function ver($id)
         {
             try {
@@ -237,29 +219,127 @@ class EnvioMuestraWebController extends Controller
         }
     }
 
-    public function lista()
+    public function lista(Request $request)
     {
-        try {
-            $response = $this->apiService->get("envio-muestras");
-            $envios = $response->successful() ? $response->json() : [];
+        // Obtener fechas del request o establecer el mes actual por defecto
+        $fechaDesde = $request->input('fecha_desde');
+        $fechaHasta = $request->input('fecha_hasta');
+        
+        $titulo_filtro = 'Envíos del mes actual';
+        
+        // Consulta base
+        $query = Envio::with('sede')->orderBy('fecha', 'desc');
+        
+        // Si no hay fechas en el request, filtrar por mes actual
+        if (!$fechaDesde && !$fechaHasta) {
+            $inicioMes = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $finMes = Carbon::now()->endOfMonth()->format('Y-m-d');
             
-            return view('laboratorio.lista', compact('envios'));
-        } catch (\Exception $e) {
-            Log::error('Error al listar envíos: ' . $e->getMessage());
-            return view('laboratorio.lista', ['envios' => []]);
+            $query->whereBetween('fecha', [$inicioMes, $finMes]);
+        } else {
+            // Aplicar filtros de fecha si existen
+            if ($fechaDesde) {
+                $query->where('fecha', '>=', $fechaDesde);
+            }
+            
+            if ($fechaHasta) {
+                $query->where('fecha', '<=', $fechaHasta);
+            }
+            
+            $titulo_filtro = 'Resultados de búsqueda';
         }
+        
+        // Si hay una sede específica (opcional)
+        if ($request->has('sede_id')) {
+            $query->where('sede_id', $request->sede_id);
+            $sede = Sede::find($request->sede_id);
+        }
+        
+        $envios = $query->get();
+        
+        return view('laboratorio.lista', [
+            'envios' => $envios,
+            'titulo_filtro' => $titulo_filtro,
+            'sede' => $sede ?? null
+        ]);
     }
     public function generarPdf($id)
-{
-    try {
-        // Obtener los datos del envío
-        $response = $this->apiService->get("envio-muestras/{$id}");
-        $envio = $response->successful() ? $response->json() : null;
-        
-        if (!$envio) {
-            return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
+    {
+        try {
+            // Obtener los datos del envío
+            $response = $this->apiService->get("envio-muestras/{$id}");
+            $envio = $response->successful() ? $response->json() : null;
+            
+            if (!$envio) {
+                return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
+            }
+            
+            // Descargar y guardar el logo si no existe
+            $logoPath = public_path('images/logo.png');
+            if (!file_exists($logoPath)) {
+                // Crear directorio si no existe
+                if (!file_exists(public_path('images'))) {
+                    mkdir(public_path('images'), 0755, true);
+                }
+                
+                // Descargar el logo
+                $logoUrl = 'https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png';
+                file_put_contents($logoPath, file_get_contents($logoUrl));
+            }
+            
+            // Generar el PDF
+            $pdf = PDF::loadView('laboratorio.detallepdf', compact('envio'));
+            $pdf->setPaper('letter', 'landscape');
+            $pdf->setOptions([
+                'dpi' => 150,
+                'defaultFont' => 'sans-serif',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true
+            ]);
+            
+            // Nombre del archivo
+            $filename = 'envio_muestras_' . $id . '.pdf';
+            
+            // Retornar el PDF para descarga
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            Log::error('Error al generar PDF: ' . $e->getMessage());
+            return redirect()->route('laboratorio.index')->with('error', 'Error al generar el PDF');
         }
-        
+    }
+    // Método para envío manual desde la interfaz
+    public function enviarPorEmail($id)
+    {
+        try {
+            // Obtener los datos del envío
+            $response = $this->apiService->get("envio-muestras/{$id}");
+            $envio = $response->successful() ? $response->json() : null;
+            
+            if (!$envio) {
+                return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
+            }
+            
+            // Generar el PDF
+            $pdf = $this->generarPdfParaEmail($envio);
+            
+            // Obtener la sede para personalizar el asunto
+            $nombreSede = $envio['sede']['nombre'] ?? $envio['sede']['nombresede'] ?? 'Sede desconocida';
+            
+            // Enviar el correo con el PDF adjunto
+            $this->enviarEmailConPdf($pdf, $envio, $nombreSede);
+            
+            return redirect()->route('laboratorio.ver', $id)
+                ->with('success', 'El PDF ha sido enviado por correo electrónico correctamente');
+        } catch (\Exception $e) {
+            Log::error('Error al enviar PDF por email: ' . $e->getMessage());
+            return redirect()->route('laboratorio.ver', $id)
+                ->with('error', 'Error al enviar el PDF por correo electrónico: ' . $e->getMessage());
+        }
+    }
+
+    // Método para generar el PDF para enviar por email
+    private function generarPdfParaEmail($envio)
+    {
         // Descargar y guardar el logo si no existe
         $logoPath = public_path('images/logo.png');
         if (!file_exists($logoPath)) {
@@ -283,105 +363,36 @@ class EnvioMuestraWebController extends Controller
             'isRemoteEnabled' => true
         ]);
         
-        // Nombre del archivo
-        $filename = 'envio_muestras_' . $id . '.pdf';
-        
-        // Retornar el PDF para descarga
-        return $pdf->download($filename);
-    } catch (\Exception $e) {
-        Log::error('Error al generar PDF: ' . $e->getMessage());
-        return redirect()->route('laboratorio.index')->with('error', 'Error al generar el PDF');
+        return $pdf;
     }
-}
-// Método para envío manual desde la interfaz
-public function enviarPorEmail($id)
-{
-    try {
-        // Obtener los datos del envío
-        $response = $this->apiService->get("envio-muestras/{$id}");
-        $envio = $response->successful() ? $response->json() : null;
-        
-        if (!$envio) {
-            return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
-        }
-        
-        // Generar el PDF
-        $pdf = $this->generarPdfParaEmail($envio);
-        
-        // Obtener la sede para personalizar el asunto
-        $nombreSede = $envio['sede']['nombre'] ?? $envio['sede']['nombresede'] ?? 'Sede desconocida';
-        
-        // Enviar el correo con el PDF adjunto
-        $this->enviarEmailConPdf($pdf, $envio, $nombreSede);
-        
-        return redirect()->route('laboratorio.ver', $id)
-            ->with('success', 'El PDF ha sido enviado por correo electrónico correctamente');
-    } catch (\Exception $e) {
-        Log::error('Error al enviar PDF por email: ' . $e->getMessage());
-        return redirect()->route('laboratorio.ver', $id)
-            ->with('error', 'Error al enviar el PDF por correo electrónico: ' . $e->getMessage());
-    }
-}
 
-// Método para generar el PDF para enviar por email
-private function generarPdfParaEmail($envio)
-{
-    // Descargar y guardar el logo si no existe
-    $logoPath = public_path('images/logo.png');
-    if (!file_exists($logoPath)) {
-        // Crear directorio si no existe
-        if (!file_exists(public_path('images'))) {
-            mkdir(public_path('images'), 0755, true);
-        }
-        
-        // Descargar el logo
-        $logoUrl = 'https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png';
-        file_put_contents($logoPath, file_get_contents($logoUrl));
-    }
-    
-    // Generar el PDF
-    $pdf = PDF::loadView('laboratorio.detallepdf', compact('envio'));
-    $pdf->setPaper('letter', 'landscape');
-    $pdf->setOptions([
-        'dpi' => 150,
-        'defaultFont' => 'sans-serif',
-        'isHtml5ParserEnabled' => true,
-        'isRemoteEnabled' => true
-    ]);
-    
-    return $pdf;
-}
-
-// Método para enviar el email con el PDF adjunto
-private function enviarEmailConPdf($pdf, $envio, $nombreSede)
-{
-    // Lista de destinatarios
-    $destinatarios = config('laboratorio.emails_destinatarios', [
-        'yeiserna14@gmail.com',
-        'jamo.mosquera@gmail.com'
-    ]);
-    
-    // Nombre del archivo
-    $filename = 'envio_muestras_' . $envio['id'] . '.pdf';
-    
-    // Enviar el correo
-    Mail::send('emails.envio_muestras', ['envio' => $envio], function ($message) use ($pdf, $filename, $destinatarios, $nombreSede, $envio) {
-        $message->subject('Envío de Muestras - ' . $nombreSede . ' - ' . $envio['codigo']);
-        
-        // Agregar todos los destinatarios
-        $message->to($destinatarios[0]); // Primer destinatario como principal
-        
-        // Si hay más de un destinatario, agregarlos como CC
-        for ($i = 1; $i < count($destinatarios); $i++) {
-            $message->cc($destinatarios[$i]);
-        }
-        
-        $message->attachData($pdf->output(), $filename, [
-            'mime' => 'application/pdf',
+    // Método para enviar el email con el PDF adjunto
+    private function enviarEmailConPdf($pdf, $envio, $nombreSede)
+    {
+        // Lista de destinatarios
+        $destinatarios = config('laboratorio.emails_destinatarios', [
+            'yeiserna14@gmail.com',
+            'jhon123seba@gmail.com'
         ]);
-    });
-}
-
-
-
-}
+        
+        // Nombre del archivo
+        $filename = 'envio_muestras_' . $envio['id'] . '.pdf';
+        
+        // Enviar el correo
+        Mail::send('emails.envio_muestras', ['envio' => $envio], function ($message) use ($pdf, $filename, $destinatarios, $nombreSede, $envio) {
+            $message->subject('Envío de Muestras - ' . $nombreSede . ' - ' . $envio['codigo']);
+            
+            // Agregar todos los destinatarios
+            $message->to($destinatarios[0]); // Primer destinatario como principal
+            
+            // Si hay más de un destinatario, agregarlos como CC
+            for ($i = 1; $i < count($destinatarios); $i++) {
+                $message->cc($destinatarios[$i]);
+            }
+            
+            $message->attachData($pdf->output(), $filename, [
+                'mime' => 'application/pdf',
+            ]);
+        });
+    }
+    }

@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
     {
         // Ejecutar todos los días a las 18:00 (6:00 PM)
         $schedule->command('muestras:enviar-diario')
-                 ->dailyAt('18:00')
+                 ->dailyAt('11:30')
                  ->appendOutputTo(storage_path('logs/envio-muestras.log'));
     }
 

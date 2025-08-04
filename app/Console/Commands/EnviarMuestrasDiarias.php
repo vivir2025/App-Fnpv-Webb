@@ -127,7 +127,7 @@ class EnviarMuestrasDiarias extends Command
         // Lista de destinatarios (puedes configurarla en el .env o en la base de datos)
         $destinatarios = config('laboratorio.emails_destinatarios', [
             'yeiserna14@gmail.com',
-            'jamo.mosquera@gmail.com',
+            'jhon123seba@gmail.com',
             
         ]);
         
@@ -136,7 +136,7 @@ class EnviarMuestrasDiarias extends Command
         
         // Enviar el correo
         Mail::send('emails.envio_muestras', ['envio' => $envio], function ($message) use ($pdf, $filename, $destinatarios, $nombreSede, $envio) {
-            $message->subject('Envío Automático de Muestras - ' . $nombreSede . ' - ' . Carbon::parse($envio['fecha'])->format('d/m/Y'));
+            $message->subject('Envío Planillas de Laboratorio - ' . $nombreSede . ' - ' . Carbon::parse($envio['fecha'])->format('d/m/Y'));
             
             foreach ($destinatarios as $destinatario) {
                 $message->to($destinatario);
