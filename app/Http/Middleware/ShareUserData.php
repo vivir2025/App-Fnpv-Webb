@@ -15,6 +15,24 @@ class ShareUserData
             View::share('currentUser', session('usuario'));
         }
 
-        return $next($request);
+        // Ejecutar el siguiente middleware y obtener la respuesta
+        $response = $next($request);
+
+        // Verificar si es una descarga de Excel de brigadas
+        if ($request->is('brigadas/export/excel') && 
+            $request->cookie('brigada_download_started') && 
+            $response->headers->get('content-type') === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            
+            $response->cookie('brigada_download_complete', '1', 1);
+        }
+                // Verificar si es una descarga de Excel de encuestas
+        if ($request->is('encuestas/export/excel') && 
+            $request->cookie('encuesta_download_started') && 
+            $response->headers->get('content-type') === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            
+            $response->cookie('encuesta_download_complete', '1', 1);
+        }
+
+        return $response;
     }
 }

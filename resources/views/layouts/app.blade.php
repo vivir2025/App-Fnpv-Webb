@@ -295,6 +295,64 @@
                 height: 60px;
             }
         }
+        /* ESTILOS PARA SUBMENU */
+        .submenu {
+            list-style: none;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .submenu.show {
+            max-height: 500px; /* Altura máxima para el submenu */
+        }
+
+        .submenu-link {
+            color: var(--text-light);
+            padding: 0.5rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .submenu-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(5px);
+        }
+
+        .submenu-link.active {
+            color: white;
+            background-color: var(--primary-dark);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .submenu-link i {
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .submenu-toggle {
+            position: relative;
+        }
+
+        .submenu-icon {
+            transition: transform 0.3s ease;
+            font-size: 0.7rem;
+        }
+
+        .submenu-toggle.active .submenu-icon {
+            transform: rotate(180deg);
+        }
+
     </style>
     @yield('styles')
 </head>
@@ -335,21 +393,37 @@
                         <span>Envío de Muestras</span>
                     </a>
                 </li>
-
-
-                <!-- Puedes agregar más elementos de navegación aquí -->
                 <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="return false;">
-                        <i class="fas fa-users"></i>
-                        <span>Pacientes</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" onclick="return false;">
+                    <a class="nav-link submenu-toggle {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') ? 'active' : '' }}" href="#" onclick="toggleSubmenu(event, this)">
                         <i class="fas fa-chart-bar"></i>
                         <span>Reportes</span>
+                        <i class="fas fa-chevron-down ms-auto submenu-icon"></i>
                     </a>
+                    <ul class="submenu collapse {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') ? 'show' : '' }}">
+                        <li>
+                            <a class="submenu-link {{ request()->routeIs('visitas.export') ? 'active' : '' }}" href="{{ route('visitas.export') }}">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Exportar Visitas</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="submenu-link {{ request()->routeIs('brigadas.export') ? 'active' : '' }}" href="{{ route('brigadas.export') }}">
+                                <i class="fas fa-file-medical"></i>
+                                <span>Exportar Brigadas</span>
+                            </a>
+                        </li>
+                                                <li>
+                            <a class="submenu-link {{ request()->routeIs('encuestas.export') ? 'active' : '' }}" href="{{ route('encuestas.export') }}">
+                                <i class="fas fa-file-excel"></i>
+                                <span>Exportar Encuestas</span>
+                            </a>
+                        </li>
+
+
+                        <!-- Puedes agregar más opciones de submenu aquí -->
+                    </ul>
                 </li>
+
             </ul>
             
             <!-- Sección de cerrar sesión -->
@@ -480,6 +554,7 @@
                 }
             });
         });
+
         
         // Función para marcar el enlace activo dinámicamente
         function setActiveNavLink() {
@@ -493,7 +568,37 @@
                 }
             });
         }
-        
+        // Función para manejar el submenu
+        function toggleSubmenu(event, element) {
+            event.preventDefault();
+            
+            // Toggle la clase active en el enlace
+            element.classList.toggle('active');
+            
+            // Encuentra el submenu siguiente
+            const submenu = element.nextElementSibling;
+            
+            // Toggle la clase show en el submenu
+            if (submenu) {
+                submenu.classList.toggle('show');
+            }
+        }
+
+        // Inicializar submenus al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Marcar como activo el elemento padre si un submenu está activo
+            const activeSubmenuLink = document.querySelector('.submenu-link.active');
+            if (activeSubmenuLink) {
+                const parentItem = activeSubmenuLink.closest('.nav-item');
+                if (parentItem) {
+                    const parentToggle = parentItem.querySelector('.submenu-toggle');
+                    if (parentToggle) {
+                        parentToggle.classList.add('active');
+                    }
+                }
+            }
+        });
+
         // Ejecutar al cargar la página
         document.addEventListener('DOMContentLoaded', setActiveNavLink);
     </script>
