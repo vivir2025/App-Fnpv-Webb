@@ -8,108 +8,97 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class BrigadasExport implements FromCollection, WithHeadings, WithMapping, WithStyles
 {
-    protected $brigadas;
+    protected $datos;
 
-    public function __construct($brigadas)
+    public function __construct($datos)
     {
-        $this->brigadas = $brigadas;
+        $this->datos = collect($datos);
     }
 
     public function collection()
     {
-        return collect($this->brigadas);
+        return $this->datos;
     }
 
     public function headings(): array
     {
         return [
-            'ID',
             'Lugar del Evento',
             'Fecha de Brigada',
-            'Nombre del Conductor',
-            'Usuarios HTA',
-            'Usuarios DN',
-            'Usuarios HTA RCU',
-            'Usuarios DM RCU',
-            'Tema',
-            'Observaciones',
-            'Total Pacientes',
-            'Detalle de Medicamentos'
+            'Identificación Paciente',
+            'Nombre Paciente',
+            'Nombre Medicamento',
+            'Cantidad',
+            'Dosis',
+            'Indicaciones'
         ];
     }
 
-    public function map($brigada): array
+    public function map($item): array
     {
-        // Procesar medicamentos agrupados por paciente
-        $detalleMedicamentos = '';
-        
-        if (isset($brigada['medicamentosPacientes']) && is_array($brigada['medicamentosPacientes'])) {
-            // Agrupar medicamentos por paciente
-            $medicamentosPorPaciente = collect($brigada['medicamentosPacientes'])
-                ->groupBy('paciente_id');
-            
-            foreach ($medicamentosPorPaciente as $pacienteId => $medicamentos) {
-                // Obtener información del paciente
-                $paciente = null;
-                if (!empty($medicamentos) && isset($medicamentos[0]['paciente'])) {
-                    $paciente = $medicamentos[0]['paciente'];
-                }
-                
-                if ($paciente) {
-                    $detalleMedicamentos .= "PACIENTE: " . ($paciente['nombre_apellido'] ?? 'Sin nombre') . 
-                                           " (ID: " . ($paciente['identificacion'] ?? 'N/A') . ")\n";
-                    
-                    // Listar medicamentos de este paciente
-                    foreach ($medicamentos as $med) {
-                        if (isset($med['medicamento'])) {
-                            $nombreMed = $med['medicamento']['nombre'] ?? 'Medicamento sin nombre';
-                            $dosis = $med['dosis'] ?? 'No especificada';
-                            $cantidad = $med['cantidad'] ?? 0;
-                            $indicaciones = $med['indicaciones'] ?? '';
-                            
-                            $detalleMedicamentos .= "- " . $nombreMed . 
-                                                  " | Dosis: " . $dosis . 
-                                                  " | Cantidad: " . $cantidad;
-                                                  
-                            if (!empty($indicaciones)) {
-                                $detalleMedicamentos .= " | Indicaciones: " . $indicaciones;
-                            }
-                            
-                            $detalleMedicamentos .= "\n";
-                        }
-                    }
-                    
-                    $detalleMedicamentos .= "------------------------\n";
-                }
+        $brigada = $item['brigada'];
+        $paciente = $item['paciente'];
+        $medicamento = $item['medicamento'];
+        $relacion = $item['relacion'];
+
+        // Formatear nombre completo del paciente
+        $nombrePaciente = '';
+        if ($paciente) {
+            if (isset($paciente['nombre']) && isset($paciente['apellido'])) {
+                $nombrePaciente = $paciente['nombre'] . ' ' . $paciente['apellido'];
+            } elseif (isset($paciente['nombre_apellido'])) {
+                $nombrePaciente = $paciente['nombre_apellido'];
             }
         }
 
-        // Contar pacientes
-        $totalPacientes = isset($brigada['pacientes']) ? count($brigada['pacientes']) : 0;
+        // Obtener nombre del medicamento según la estructura
+        $nombreMedicamento = '';
+        if ($medicamento) {
+            if (isset($medicamento['nombmedicamento'])) {
+                $nombreMedicamento = $medicamento['nombmedicamento'];
+            } elseif (isset($medicamento['nombre'])) {
+                $nombreMedicamento = $medicamento['nombre'];
+            }
+        }
 
         return [
-            $brigada['id'] ?? '',
             $brigada['lugar_evento'] ?? '',
             isset($brigada['fecha_brigada']) ? Carbon::parse($brigada['fecha_brigada'])->format('d/m/Y') : '',
-            $brigada['nombre_conductor'] ?? '',
-            $brigada['usuarios_hta'] ?? '',
-            $brigada['usuarios_dn'] ?? '',
-            $brigada['usuarios_hta_rcu'] ?? '',
-            $brigada['usuarios_dm_rcu'] ?? '',
-            $brigada['tema'] ?? '',
-            $brigada['observaciones'] ?? '',
-            $totalPacientes,
-            $detalleMedicamentos
+            $paciente ? ($paciente['identificacion'] ?? '') : '',
+            $nombrePaciente,
+            $nombreMedicamento,
+            $relacion ? ($relacion['cantidad'] ?? '') : '',
+            $relacion ? ($relacion['dosis'] ?? '') : '',
+            $relacion ? ($relacion['indicaciones'] ?? '') : ''
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
         return [
-            1 => ['font' => ['bold' => true]],
+            1 => [
+                'font' => ['bold' => true],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '4472C4']
+                ],
+                'font' => [
+                    'color' => ['rgb' => 'FFFFFF']
+                ]
+            ],
+            'A' => ['width' => 25],
+            'B' => ['width' => 15],
+            'C' => ['width' => 20],
+            'D' => ['width' => 30],
+            'E' => ['width' => 30],
+            'F' => ['width' => 10],
+            'G' => ['width' => 20],
+            'H' => ['width' => 40],
         ];
     }
 }

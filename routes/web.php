@@ -8,6 +8,10 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\EnvioMuestraWebController;
 use App\Http\Controllers\BrigadaExportController;
 use App\Http\Controllers\EncuestaExportController;
+use App\Http\Controllers\FindriskExportController;
+use App\Http\Controllers\AfinamientoExportController;
+use App\Http\Controllers\TamizajeExportController;
+use Illuminate\Support\Facades\Mail;
 use App\Http\Middleware\ApiAuthentication;
 
 // Ruta raíz
@@ -60,18 +64,39 @@ Route::middleware(ApiAuthentication::class)->group(function () {
         Route::post('/buscar-paciente', [EnvioMuestraWebController::class, 'buscarPaciente'])->name('buscar-paciente');
         Route::get('/detalle-pdf/{id}', [EnvioMuestraWebController::class, 'generarPdf'])->name('detallePdf');
         Route::get('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
+        Route::post('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
     });
+
     // Rutas para exportación de brigadas
     Route::prefix('brigadas')->name('brigadas.')->group(function () {
         Route::get('/export/form', [BrigadaExportController::class, 'exportForm'])->name('export');
         Route::post('/export/excel', [BrigadaExportController::class, 'exportExcel'])->name('export.excel');
     });
 
-    // En routes/web.php o donde tengas tus rutas
+    // Rutas para encuestas
     Route::get('encuestas/export', [EncuestaExportController::class, 'exportForm'])->name('encuestas.export');
     Route::get('encuestas/export/excel', [EncuestaExportController::class, 'exportExcel'])->name('encuestas.export.excel');
+    
+    // Rutas para FINDRISK
+    Route::prefix('findrisk')->name('findrisk.')->group(function () {
+        // Ruta principal para findrisk (vista index)
+        Route::get('/', [FindriskExportController::class, 'index'])->name('index');
+        Route::get('/exportar', [FindriskExportController::class, 'index'])->name('export');
+        Route::post('/exportar', [FindriskExportController::class, 'exportar'])->name('exportar');
+    });
 
-        
+    // Rutas para exportación de afinamientos
+    Route::prefix('afinamientos')->name('afinamientos.')->group(function () {
+        Route::get('/export/form', [AfinamientoExportController::class, 'exportForm'])->name('export');
+        Route::post('/export/excel', [AfinamientoExportController::class, 'exportExcel'])->name('export.excel');
+    });
+
+    // Rutas para exportación de tamizajes
+    Route::prefix('tamizajes')->name('tamizajes.')->group(function () {
+        Route::get('/export/form', [TamizajeExportController::class, 'exportForm'])->name('export');
+        Route::post('/export/excel', [TamizajeExportController::class, 'exportExcel'])->name('export.excel');
+    });
+
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
@@ -79,14 +104,14 @@ Route::middleware(ApiAuthentication::class)->group(function () {
 // Ruta para manejar errores 404 (opcional)
 Route::fallback(function () {
     return response()->view('errors.404', [], 404);
-});
-
+        });
+        
 Route::get('/test-email', function () {
     try {
         Mail::raw('Prueba de correo desde Laravel', function($message) {
             $message->to('tecnologia@nacerparavivir.org')
                     ->subject('Prueba de correo');
-        });
+});
         
         return 'Correo enviado correctamente';
     } catch (\Exception $e) {

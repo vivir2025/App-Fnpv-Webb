@@ -20,6 +20,10 @@ return [
      'external_api' => [
         'url' => env('EXTERNAL_API_URL', 'http://fnpvi.nacerparavivir.org/api'),
     ],
+        // Añadimos esta configuración para mantener compatibilidad con tu código actual
+    // 'api' => [
+    //     'base_url' => env('EXTERNAL_API_URL', 'http://fnpvi.nacerparavivir.org/api'),
+    // ],
 
     'resend' => [
         'key' => env('RESEND_KEY'),

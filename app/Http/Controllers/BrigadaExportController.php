@@ -51,16 +51,64 @@ class BrigadaExportController extends Controller
                 
                 if (count($brigadas) > 0) {
                     // Cargar detalles completos de cada brigada
-                    $brigadasCompletas = [];
+                    $datosProcesados = [];
+                    
                     foreach ($brigadas as $brigada) {
+                        // Obtener detalle de la brigada
                         $detailResponse = $this->apiService->get('brigadas/' . $brigada['id']);
+                        
                         if ($detailResponse->successful()) {
-                            $brigadasCompletas[] = $detailResponse->json()['data'];
+                            $brigadaDetalle = $detailResponse->json()['data'];
+                            
+                            // Verificar si hay medicamentos_pacientes en la respuesta
+                            if (isset($brigadaDetalle['medicamentos_pacientes']) && !empty($brigadaDetalle['medicamentos_pacientes'])) {
+                                $medicamentosPacientes = $brigadaDetalle['medicamentos_pacientes'];
+                                
+                                foreach ($medicamentosPacientes as $medPaciente) {
+                                    // Verificar que tenga la información necesaria
+                                    if (isset($medPaciente['medicamento']) && isset($medPaciente['paciente'])) {
+                                        $datosProcesados[] = [
+                                            'brigada' => $brigadaDetalle,
+                                            'paciente' => $medPaciente['paciente'],
+                                            'medicamento' => $medPaciente['medicamento'],
+                                            'relacion' => [
+                                                'cantidad' => $medPaciente['cantidad'] ?? null,
+                                                'dosis' => $medPaciente['dosis'] ?? null,
+                                                'indicaciones' => $medPaciente['indicaciones'] ?? null
+                                            ]
+                                        ];
+                                    }
+                                }
+                            } else {
+                                // Si no hay medicamentos, al menos agregar los pacientes
+                                if (isset($brigadaDetalle['pacientes']) && !empty($brigadaDetalle['pacientes'])) {
+                                    foreach ($brigadaDetalle['pacientes'] as $paciente) {
+                                        $datosProcesados[] = [
+                                            'brigada' => $brigadaDetalle,
+                                            'paciente' => $paciente,
+                                            'medicamento' => null,
+                                            'relacion' => null
+                                        ];
+                                    }
+                                } else {
+                                    // Si no hay ni pacientes ni medicamentos, al menos agregar la brigada
+                                    $datosProcesados[] = [
+                                        'brigada' => $brigadaDetalle,
+                                        'paciente' => null,
+                                        'medicamento' => null,
+                                        'relacion' => null
+                                    ];
+                                }
+                            }
                         }
                     }
                     
+                    if (empty($datosProcesados)) {
+                        return back()->withErrors(['error' => 'No se pudieron cargar los detalles de las brigadas.']);
+                    }
+                    
                     $nombreArchivo = 'brigadas_medicamentos_' . $fechaInicio . '_' . $fechaFin . '.xlsx';
-                    return Excel::download(new BrigadasExport($brigadasCompletas), $nombreArchivo);
+                    return Excel::download(new BrigadasExport($datosProcesados), $nombreArchivo);
                 }
                 
                 return back()->withErrors(['error' => 'No se encontraron brigadas en el rango de fechas seleccionado.']);

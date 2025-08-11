@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/EncuestaExportController.php
 
 namespace App\Http\Controllers;
 
@@ -15,6 +14,25 @@ use Carbon\Carbon;
 class EncuestaExportController extends Controller
 {
     protected $apiService;
+    
+    // Mapeo de identificadores de preguntas a sus nombres reales
+    protected $preguntasCalificacionMap = [
+        'pregunta_0' => 'El trato que recibió fue',
+        'pregunta_1' => 'Cómo definiría el tiempo en espera para la atención',
+        'pregunta_2' => 'Durante la consulta, el profesional le permitió expresar sus dudas o inquietudes con respecto a su enfermedad, a los exámenes y al tratamiento',
+        'pregunta_3' => 'Oportunidad en la asignación de citas',
+        'pregunta_4' => 'Cómo es el trato por parte del personal de la IPS',
+        'pregunta_5' => 'Cómo califica la limpieza y aseo de las instalaciones',
+        'pregunta_6' => 'Fue claro el personal administrativo en la información brindada',
+        'pregunta_7' => 'Cómo calificaría su experiencia global respecto a los servicios de salud en la Fundación Nacer para Vivir'
+    ];
+    
+    protected $preguntasAdicionalesMap = [
+        'pregunta_0' => 'Entendió la información recibida con respecto al tratamiento',
+        'pregunta_1' => 'Cuál de estas características encontró en el profesional que lo atendió',
+        'pregunta_2' => 'Recomendaría a sus familiares y amigos esta IPS',
+        'pregunta_3' => 'Durante la atención se ha sentido usted discriminado'
+    ];
 
     public function __construct(ApiService $apiService)
     {
@@ -54,6 +72,10 @@ class EncuestaExportController extends Controller
         
         $encuestas = $response['data'] ?? [];
         
+        if (empty($encuestas)) {
+            return back()->with('warning', 'No se encontraron encuestas para el período seleccionado.');
+        }
+        
         // Crear el archivo Excel
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -84,7 +106,9 @@ class EncuestaExportController extends Controller
             if (is_array($respuestasCalificacion)) {
                 foreach ($respuestasCalificacion as $pregunta => $respuesta) {
                     $preguntasCalificacion[] = $pregunta;
-                    $headers[] = "Calificación: $pregunta";
+                    // Usar el nombre real de la pregunta si existe en el mapeo, si no usar el identificador
+                    $nombrePregunta = $this->preguntasCalificacionMap[$pregunta] ?? "Calificación: $pregunta";
+                    $headers[] = $nombrePregunta;
                 }
             }
             
@@ -93,7 +117,9 @@ class EncuestaExportController extends Controller
             if (is_array($respuestasAdicionales)) {
                 foreach ($respuestasAdicionales as $pregunta => $respuesta) {
                     $preguntasAdicionales[] = $pregunta;
-                    $headers[] = "Pregunta: $pregunta";
+                    // Usar el nombre real de la pregunta si existe en el mapeo, si no usar el identificador
+                    $nombrePregunta = $this->preguntasAdicionalesMap[$pregunta] ?? "Pregunta: $pregunta";
+                    $headers[] = $nombrePregunta;
                 }
             }
         }
@@ -139,9 +165,9 @@ class EncuestaExportController extends Controller
             // Datos básicos
             $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['id'] ?? '');
             $sheet->setCellValueByColumnAndRow($column++, $row, isset($encuesta['fecha']) ? Carbon::parse($encuesta['fecha'])->format('d/m/Y') : '');
-            $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['paciente']['documento'] ?? '');
+            $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['paciente']['identificacion'] ?? '');
             $sheet->setCellValueByColumnAndRow($column++, $row, isset($encuesta['paciente']) ? ($encuesta['paciente']['nombre'] ?? '') . ' ' . ($encuesta['paciente']['apellido'] ?? '') : '');
-            $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['sede']['nombre'] ?? '');
+            $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['sede']['nombresede'] ?? '');
             $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['domicilio'] ?? '');
             $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['entidad_afiliada'] ?? '');
             $sheet->setCellValueByColumnAndRow($column++, $row, $encuesta['usuario']['nombre'] ?? '');
