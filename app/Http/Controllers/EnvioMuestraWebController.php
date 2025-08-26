@@ -67,43 +67,45 @@ class EnvioMuestraWebController extends Controller
             return redirect()->route('laboratorio.index');
         }
     }
-        public function ver($id)
-        {
-            try {
-                // Obtener el envío
-                $response = $this->apiService->get("envio-muestras/{$id}");
-                $envio = $response->successful() ? $response->json() : null;
 
-                if (!$envio) {
-                    return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
-                }
+    public function ver($id)
+    {
+        try {
+            // Obtener el envío
+            $response = $this->apiService->get("envio-muestras/{$id}");
+            $envio = $response->successful() ? $response->json() : null;
 
-                // Obtener responsable de toma
-                $envio['responsable_toma_nombre'] = null;
-                if (!empty($envio['responsable_toma_id'])) {
-                    $resUsuario = $this->apiService->get("usuarios/{$envio['responsable_toma_id']}");
-                    if ($resUsuario->successful()) {
-                        $usuario = $resUsuario->json();
-                        $envio['responsable_toma_nombre'] = $usuario['nombre'] ?? null;
-                    }
-                }
-
-                // Obtener usuario creador
-                $envio['usuario_creador_nombre'] = null;
-                if (!empty($envio['usuario_creador_id'])) {
-                    $resCreador = $this->apiService->get("usuarios/{$envio['usuario_creador_id']}");
-                    if ($resCreador->successful()) {
-                        $usuario = $resCreador->json();
-                        $envio['usuario_creador_nombre'] = $usuario['nombre'] ?? null;
-                    }
-                }
-
-                return view('laboratorio.ver', compact('envio'));
-            } catch (\Exception $e) {
-                Log::error('Error al ver envío: ' . $e->getMessage());
-                return redirect()->route('laboratorio.index')->with('error', 'Error al cargar el envío');
+            if (!$envio) {
+                return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
             }
+
+            // Obtener responsable de toma
+            $envio['responsable_toma_nombre'] = null;
+            if (!empty($envio['responsable_toma_id'])) {
+                $resUsuario = $this->apiService->get("usuarios/{$envio['responsable_toma_id']}");
+                if ($resUsuario->successful()) {
+                    $usuario = $resUsuario->json();
+                    $envio['responsable_toma_nombre'] = $usuario['nombre'] ?? null;
+                }
+            }
+
+            // Obtener usuario creador
+            $envio['usuario_creador_nombre'] = null;
+            if (!empty($envio['usuario_creador_id'])) {
+                $resCreador = $this->apiService->get("usuarios/{$envio['usuario_creador_id']}");
+                if ($resCreador->successful()) {
+                    $usuario = $resCreador->json();
+                    $envio['usuario_creador_nombre'] = $usuario['nombre'] ?? null;
+                }
+            }
+
+            return view('laboratorio.ver', compact('envio'));
+        } catch (\Exception $e) {
+            Log::error('Error al ver envío: ' . $e->getMessage());
+            return redirect()->route('laboratorio.index')->with('error', 'Error al cargar el envío');
         }
+    }
+
     public function crear()
     {
         try {
@@ -263,6 +265,7 @@ class EnvioMuestraWebController extends Controller
             'sede' => $sede ?? null
         ]);
     }
+
     public function generarPdf($id)
     {
         try {
@@ -307,6 +310,7 @@ class EnvioMuestraWebController extends Controller
             return redirect()->route('laboratorio.index')->with('error', 'Error al generar el PDF');
         }
     }
+
     // Método para envío manual desde la interfaz
     public function enviarPorEmail($id)
     {
@@ -319,6 +323,16 @@ class EnvioMuestraWebController extends Controller
                 return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
             }
             
+            // Obtener el correo del usuario creador del laboratorio
+            $correoUsuarioCreador = null;
+            if (!empty($envio['usuario_creador_id'])) {
+                $responseUsuario = $this->apiService->get("usuarios/{$envio['usuario_creador_id']}");
+                if ($responseUsuario->successful()) {
+                    $usuario = $responseUsuario->json();
+                    $correoUsuarioCreador = $usuario['correo'] ?? null;
+                }
+            }
+            
             // Generar el PDF
             $pdf = $this->generarPdfParaEmail($envio);
             
@@ -326,7 +340,7 @@ class EnvioMuestraWebController extends Controller
             $nombreSede = $envio['sede']['nombre'] ?? $envio['sede']['nombresede'] ?? 'Sede desconocida';
             
             // Enviar el correo con el PDF adjunto
-            $this->enviarEmailConPdf($pdf, $envio, $nombreSede);
+            $this->enviarEmailConPdf($pdf, $envio, $nombreSede, $correoUsuarioCreador);
             
             return redirect()->route('laboratorio.ver', $id)
                 ->with('success', 'El PDF ha sido enviado por correo electrónico correctamente');
@@ -367,13 +381,19 @@ class EnvioMuestraWebController extends Controller
     }
 
     // Método para enviar el email con el PDF adjunto
-    private function enviarEmailConPdf($pdf, $envio, $nombreSede)
+    private function enviarEmailConPdf($pdf, $envio, $nombreSede, $correoUsuarioCreador = null)
     {
-        // Lista de destinatarios
+        // Lista de destinatarios base
         $destinatarios = config('laboratorio.emails_destinatarios', [
-            'yeiserna14@gmail.com',
-            'jhon123seba@gmail.com'
+            'jhon123seba@gmail.com',
+            "yeianaya18@gmail.com"
         ]);
+        
+        // Agregar el correo del usuario creador si existe y no está ya en la lista
+        if ($correoUsuarioCreador && !in_array($correoUsuarioCreador, $destinatarios)) {
+            $destinatarios[] = $correoUsuarioCreador;
+            Log::info("Agregando correo del usuario creador: {$correoUsuarioCreador}");
+        }
         
         // Nombre del archivo
         $filename = 'envio_muestras_' . $envio['id'] . '.pdf';
@@ -382,10 +402,10 @@ class EnvioMuestraWebController extends Controller
         Mail::send('emails.envio_muestras', ['envio' => $envio], function ($message) use ($pdf, $filename, $destinatarios, $nombreSede, $envio) {
             $message->subject('Envío de Muestras - ' . $nombreSede . ' - ' . $envio['codigo']);
             
-            // Agregar todos los destinatarios
-            $message->to($destinatarios[0]); // Primer destinatario como principal
+            // Agregar el primer destinatario como principal
+            $message->to($destinatarios[0]);
             
-            // Si hay más de un destinatario, agregarlos como CC
+            // Si hay más destinatarios, agregarlos como CC
             for ($i = 1; $i < count($destinatarios); $i++) {
                 $message->cc($destinatarios[$i]);
             }
@@ -394,5 +414,8 @@ class EnvioMuestraWebController extends Controller
                 'mime' => 'application/pdf',
             ]);
         });
+        
+        // Log para verificar que se envió correctamente
+        Log::info("Email enviado a: " . implode(', ', $destinatarios));
     }
-    }
+}
