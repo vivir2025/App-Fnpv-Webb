@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class VisitasExport implements FromCollection, WithHeadings, WithMapping, WithStyles
 {
@@ -33,6 +34,7 @@ class VisitasExport implements FromCollection, WithHeadings, WithMapping, WithSt
             'Fecha de Visita',
             'Zona',
             'Familiar',
+            'Usuario que realizó la visita', // ✅ Nueva columna
             'HTA',
             'DM',
             'Peso (kg)',
@@ -74,6 +76,40 @@ class VisitasExport implements FromCollection, WithHeadings, WithMapping, WithSt
             }
         }
 
+        // ✅ Obtener nombre del usuario y sede
+        $nombreUsuario = '';
+        $nombreSede = '';
+        
+        if (isset($visita['usuario']) && is_array($visita['usuario'])) {
+            $nombreUsuario = $visita['usuario']['nombre'] ?? 'Usuario no especificado';
+            
+            // Obtener sede del usuario - verificar diferentes estructuras posibles
+            if (isset($visita['usuario']['sede']) && is_array($visita['usuario']['sede'])) {
+                $nombreSede = $visita['usuario']['sede']['nombresede'] ?? '';
+                
+                // Si no se encuentra con nombresede, intentar con nombre
+                if (empty($nombreSede) && isset($visita['usuario']['sede']['nombre'])) {
+                    $nombreSede = $visita['usuario']['sede']['nombre'];
+            }
+        }
+
+            // Si aún no tenemos sede, intentar otras posibles ubicaciones
+            if (empty($nombreSede)) {
+                if (isset($visita['usuario']['nombresede'])) {
+                    $nombreSede = $visita['usuario']['nombresede'];
+                } elseif (isset($visita['sede']['nombresede'])) {
+                    $nombreSede = $visita['sede']['nombresede'];
+                } elseif (isset($visita['sede']['nombre'])) {
+                    $nombreSede = $visita['sede']['nombre'];
+                }
+            }
+            
+            // Si aún no tenemos sede, usar un valor por defecto
+            if (empty($nombreSede)) {
+                $nombreSede = 'Sede no especificada';
+            }
+        }
+
         return [
             $visita['id'] ?? '',
             $visita['nombre_apellido'] ?? '',
@@ -82,6 +118,7 @@ class VisitasExport implements FromCollection, WithHeadings, WithMapping, WithSt
             isset($visita['fecha']) ? Carbon::parse($visita['fecha'])->format('d/m/Y') : '',
             $visita['zona'] ?? '',
             $visita['familiar'] ?? '',
+            $nombreUsuario, // ✅ Usuario que realizó la visita
             $visita['hta'] ?? '',
             $visita['dm'] ?? '',
             $visita['peso'] ?? '',

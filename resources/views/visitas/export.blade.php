@@ -24,6 +24,22 @@
         transition: all 0.3s ease;
         border: 1px solid rgba(0,0,0,0.1);
     }
+        /* ✅ Estilos adicionales para el select de sede */
+    .export-page .form-floating select {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        padding: 1rem 0.75rem;
+        height: calc(3.5rem + 2px);
+        background-color: white;
+    }
+
+    .export-page .form-floating select:focus {
+        border-color: var(--export-primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        transform: translateY(-2px);
+    }
 
     .export-page .modern-card:hover {
         transform: translateY(-5px);
@@ -271,6 +287,25 @@
                         </div>
                         @endif
 
+                        <!-- ✅ Filtro por sede -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <div class="form-floating">
+                                        <select name="sede_id" id="sede_id" class="form-control">
+                                            <option value="todas">Todas las sedes</option>
+                                            @foreach($sedes as $sede)
+                                                <option value="{{ $sede['id'] ?? $sede['idsede'] }}">
+                                                    {{ $sede['nombresede'] }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <label for="sede_id"><i class="fas fa-building me-2"></i>Sede</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -309,7 +344,7 @@
         <p class="export-loading-text">Descargando...</p>
         <p class="export-loading-subtext">Generando archivo Excel, por favor espere</p>
     </div>
-</div>
+
 @endsection
 
 @section('scripts')
@@ -367,7 +402,18 @@
                 generateBtn.classList.remove('success-animation');
             }, 600);
         }
-
+  // ✅ Efectos de hover para select también
+        const selects = document.querySelectorAll('.form-floating select');
+        selects.forEach(select => {
+            select.addEventListener('focus', function() {
+                this.closest('.form-floating').style.transform = 'translateY(-2px)';
+            });
+            
+            select.addEventListener('blur', function() {
+                this.closest('.form-floating').style.transform = 'translateY(0)';
+            });
+        });
+    });
         // Función para detectar cuando termine la descarga
         function checkDownloadComplete() {
             const checkInterval = setInterval(function() {

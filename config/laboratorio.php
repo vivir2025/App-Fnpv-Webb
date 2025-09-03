@@ -12,6 +12,7 @@ return [
     'emails_destinatarios' => [
         'yeiserna14@gmail.com',
         'jhon123seba@gmail.com',
+        // 'facturacion.caucalab@gmail.com',
         
         // Añade más correos según sea necesario
     ],

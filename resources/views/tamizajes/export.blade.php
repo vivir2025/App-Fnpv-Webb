@@ -292,6 +292,23 @@
                             </div>
                         </div>
 
+                        <!-- Nuevo: Filtro por sede -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-floating">
+                                        <select name="sede_id" id="sede_id" class="form-control">
+                                            <option value="">Todas las sedes</option>
+                                            @foreach($sedes ?? [] as $sede)
+                                                <option value="{{ $sede['id'] }}">{{ $sede['nombresede'] ?? $sede['nombre'] ?? 'Sede '.$sede['id'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        <label for="sede_id"><i class="fas fa-hospital-alt me-2"></i>Filtrar por Sede</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <div class="form-group">

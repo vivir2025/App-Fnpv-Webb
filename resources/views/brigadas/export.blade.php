@@ -74,7 +74,8 @@
         margin-bottom: 1.5rem;
     }
 
-    .brigada-export .form-floating input {
+    .brigada-export .form-floating input,
+    .brigada-export .form-floating select {
         border: 2px solid #e9ecef;
         border-radius: 12px;
         transition: all 0.3s ease;
@@ -83,7 +84,8 @@
         height: calc(3.5rem + 2px);
     }
 
-    .brigada-export .form-floating input:focus {
+    .brigada-export .form-floating input:focus,
+    .brigada-export .form-floating select:focus {
         border-color: var(--export-primary-color);
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
         transform: translateY(-2px);
@@ -290,6 +292,27 @@
                             </div>
                         </div>
 
+                        {{-- ✅ NUEVO FILTRO POR SEDE --}}
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <div class="form-floating">
+                                        <select name="sede_id" id="sede_id" class="form-control">
+                                            <option value="todas">Todas las sedes</option>
+                                            @if(isset($sedes) && count($sedes) > 0)
+                                                @foreach($sedes as $sede)
+                                                    <option value="{{ $sede['id'] ?? $sede['idsede'] ?? '' }}">
+                                                        {{ $sede['nombresede'] ?? $sede['nombre'] ?? 'Sede sin nombre' }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                        <label for="sede_id"><i class="fas fa-building me-2"></i>Sede</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-grid">
                             <button type="submit" class="btn btn-success modern-btn" id="generateBtn">
                                 <i class="fas fa-download"></i> Generar Excel
@@ -362,7 +385,7 @@
             generateBtn.disabled = false;
             
             // Animación de éxito
-            generateBtn.classList.add('success-animation');
+                        generateBtn.classList.add('success-animation');
             setTimeout(() => {
                 generateBtn.classList.remove('success-animation');
             }, 600);
@@ -409,16 +432,46 @@
             document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         }
 
-        // Efectos de hover para inputs
-        const inputs = document.querySelectorAll('.form-floating input');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
+        // ✅ NUEVA FUNCIONALIDAD: Efectos visuales para el selector de sede
+        const sedeSelect = document.getElementById('sede_id');
+        if (sedeSelect) {
+            sedeSelect.addEventListener('change', function() {
+                // Efecto visual al cambiar sede
+                this.closest('.form-floating').style.transform = 'scale(1.02)';
+                setTimeout(() => {
+                    this.closest('.form-floating').style.transform = 'scale(1)';
+                }, 200);
+                
+                // Log para depuración
+                console.log('Sede seleccionada:', this.value, this.options[this.selectedIndex].text);
+            });
+        }
+
+        // Efectos de hover para inputs y selects
+        const formElements = document.querySelectorAll('.form-floating input, .form-floating select');
+        formElements.forEach(element => {
+            element.addEventListener('focus', function() {
                 this.closest('.form-floating').style.transform = 'translateY(-2px)';
             });
             
-            input.addEventListener('blur', function() {
+            element.addEventListener('blur', function() {
                 this.closest('.form-floating').style.transform = 'translateY(0)';
             });
+        });
+
+        // ✅ NUEVA FUNCIONALIDAD: Validación adicional para sede
+        form.addEventListener('submit', function(e) {
+            const sedeId = document.getElementById('sede_id').value;
+            
+            // Mostrar información adicional en el loading según la sede seleccionada
+            if (sedeId && sedeId !== 'todas') {
+                const sedeNombre = document.getElementById('sede_id').options[document.getElementById('sede_id').selectedIndex].text;
+                document.querySelector('.brigada-export-loading-subtext').textContent = 
+                    `Generando reporte para: ${sedeNombre}`;
+            } else {
+                document.querySelector('.brigada-export-loading-subtext').textContent = 
+                    'Generando reporte para todas las sedes';
+            }
         });
     });
 </script>

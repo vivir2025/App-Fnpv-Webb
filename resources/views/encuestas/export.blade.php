@@ -74,7 +74,8 @@
         margin-bottom: 1.5rem;
     }
 
-    .export-page .form-floating input {
+    .export-page .form-floating input,
+    .export-page .form-floating select {
         border: 2px solid #e9ecef;
         border-radius: 12px;
         transition: all 0.3s ease;
@@ -83,7 +84,8 @@
         height: calc(3.5rem + 2px);
     }
 
-    .export-page .form-floating input:focus {
+    .export-page .form-floating input:focus,
+    .export-page .form-floating select:focus {
         border-color: var(--export-primary-color);
         box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
         transform: translateY(-2px);
@@ -109,13 +111,13 @@
         overflow: hidden;
         width: 100%;
     }
-
+        
     .export-page .modern-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(25, 135, 84, 0.3);
         background: linear-gradient(135deg, var(--export-success-dark) 0%, var(--export-success-color) 100%);
     }
-
+        
     .export-page .modern-btn:active {
         transform: translateY(0);
     }
@@ -269,6 +271,12 @@
                         </div>
                         @endif
 
+                        @if (session('warning'))
+                        <div class="alert alert-warning modern-alert">
+                            {{ session('warning') }}
+                        </div>
+                        @endif
+
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <div class="form-group">
@@ -283,6 +291,22 @@
                                     <div class="form-floating">
                                         <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" required>
                                         <label for="fecha_fin"><i class="fas fa-calendar-alt me-2"></i>Fecha Final</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-floating">
+                                        <select name="sede_id" id="sede_id" class="form-control">
+                                            <option value="">Todas las sedes</option>
+                                            @foreach($sedes ?? [] as $sede)
+                                                <option value="{{ $sede['id'] }}">{{ $sede['nombresede'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        <label for="sede_id"><i class="fas fa-hospital-alt me-2"></i>Filtrar por Sede</label>
                                     </div>
                                 </div>
                             </div>
@@ -364,14 +388,14 @@
             }, 600);
         }
 
-        // Efectos de hover para inputs
-        const inputs = document.querySelectorAll('.form-floating input');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
+        // Efectos de hover para inputs y select
+        const formElements = document.querySelectorAll('.form-floating input, .form-floating select');
+        formElements.forEach(element => {
+            element.addEventListener('focus', function() {
                 this.closest('.form-floating').style.transform = 'translateY(-2px)';
             });
             
-            input.addEventListener('blur', function() {
+            element.addEventListener('blur', function() {
                 this.closest('.form-floating').style.transform = 'translateY(0)';
             });
         });

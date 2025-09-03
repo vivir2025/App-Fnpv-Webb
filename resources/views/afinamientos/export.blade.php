@@ -293,32 +293,47 @@
                         </div>
 
                         <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <div class="form-floating">
+                                        <select name="sede_id" id="sede_id" class="form-control">
+                                            <option value="">Todas las sedes</option>
+                                            @foreach($sedes ?? [] as $sede)
+                                                <option value="{{ $sede['id'] }}">{{ $sede['nombresede'] ?? $sede['nombre'] ?? 'Sede '.$sede['id'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        <label for="sede_id"><i class="fas fa-hospital-alt me-2"></i>Filtrar por Sede</label>
+                            </div>
+                                </div>
+                            </div>
+                                    </div>
+                        <div class="row mb-3">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <div class="form-floating">
                                         <input type="text" name="paciente_id" id="paciente_id" class="form-control" placeholder="ID del paciente (opcional)">
                                         <label for="paciente_id"><i class="fas fa-user me-2"></i>ID Paciente (opcional)</label>
                                     </div>
-                                </div>
+                        </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <div class="form-floating">
                                         <input type="text" name="usuario_id" id="usuario_id" class="form-control" placeholder="ID del promotor (opcional)">
                                         <label for="usuario_id"><i class="fas fa-user-md me-2"></i>ID Promotor (opcional)</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
                         <div class="d-grid">
                             <button type="submit" class="btn btn-success modern-btn" id="generateBtn">
                                 <i class="fas fa-download"></i> Generar Excel
                             </button>
-                        </div>
+</div>
                     </form>
-                </div>
-            </div>
+    </div>
+</div>
         </div>
     </div>
 </div>
@@ -389,58 +404,27 @@
             }, 600);
         }
 
-        // Función para detectar cuando termine la descarga
+        // Función para verificar si la descarga se completó
         function checkDownloadComplete() {
-            const checkInterval = setInterval(function() {
-                if (getCookie('afinamiento_download_complete') === '1') {
-                    clearInterval(checkInterval);
-                    deleteCookie('afinamiento_download_complete');
-                    deleteCookie('afinamiento_download_started');
-                    hideLoading();
-                }
-            }, 1000);
-
-            // Timeout de seguridad (30 segundos)
-            setTimeout(function() {
-                clearInterval(checkInterval);
+            if (document.cookie.indexOf('afinamiento_download_started=0') !== -1 || document.cookie.indexOf('afinamiento_download_started') === -1) {
                 hideLoading();
-            }, 30000);
-        }
-
-        // Funciones auxiliares para manejar cookies
-        function setCookie(name, value, seconds) {
-            const d = new Date();
-            d.setTime(d.getTime() + (seconds * 1000));
-            const expires = "expires=" + d.toUTCString();
-            document.cookie = name + "=" + value + ";" + expires + ";path=/";
-        }
-
-        function getCookie(name) {
-            const nameEQ = name + "=";
-            const ca = document.cookie.split(';');
-            for(let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+                // Limpiar la cookie
+                setCookie('afinamiento_download_started', '', -1);
+            } else {
+                setTimeout(checkDownloadComplete, 1000); // Verificar cada segundo
             }
-            return null;
         }
 
-        function deleteCookie(name) {
-            document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        // Función para establecer cookies
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "") + expires + "; path=/";
         }
-
-        // Efectos de hover para inputs
-        const inputs = document.querySelectorAll('.form-floating input');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.closest('.form-floating').style.transform = 'translateY(-2px)';
-            });
-            
-            input.addEventListener('blur', function() {
-                this.closest('.form-floating').style.transform = 'translateY(0)';
-            });
-        });
     });
 </script>
 @endsection

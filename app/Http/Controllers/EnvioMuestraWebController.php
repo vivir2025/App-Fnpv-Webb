@@ -312,7 +312,7 @@ class EnvioMuestraWebController extends Controller
     }
 
     // Método para envío manual desde la interfaz
-    public function enviarPorEmail($id)
+    public function enviarPorEmail($id, Request $request)
     {
         try {
             // Obtener los datos del envío
@@ -330,6 +330,18 @@ class EnvioMuestraWebController extends Controller
                 if ($responseUsuario->successful()) {
                     $usuario = $responseUsuario->json();
                     $correoUsuarioCreador = $usuario['correo'] ?? null;
+                    Log::info("Correo del usuario creador encontrado: {$correoUsuarioCreador}");
+                }
+            }
+            
+            // Obtener el correo del responsable de la toma
+            $correoResponsableToma = null;
+            if (!empty($envio['responsable_toma_id'])) {
+                $responseUsuario = $this->apiService->get("usuarios/{$envio['responsable_toma_id']}");
+                if ($responseUsuario->successful()) {
+                    $usuario = $responseUsuario->json();
+                    $correoResponsableToma = $usuario['correo'] ?? null;
+                    Log::info("Correo del responsable de toma encontrado: {$correoResponsableToma}");
                 }
             }
             
@@ -340,14 +352,55 @@ class EnvioMuestraWebController extends Controller
             $nombreSede = $envio['sede']['nombre'] ?? $envio['sede']['nombresede'] ?? 'Sede desconocida';
             
             // Enviar el correo con el PDF adjunto
-            $this->enviarEmailConPdf($pdf, $envio, $nombreSede, $correoUsuarioCreador);
+            $this->enviarEmailConPdf($pdf, $envio, $nombreSede, $correoResponsableToma, $correoUsuarioCreador);
+            
+            // Actualizar el estado de enviado_por_correo en la base de datos si se solicita
+            if ($request->has('actualizar_estado') && $request->actualizar_estado == 1) {
+                $this->actualizarEstadoEnviado($id);
+            }
+            
+            // Si es una solicitud AJAX, devolver respuesta JSON
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Email enviado correctamente']);
+            }
             
             return redirect()->route('laboratorio.ver', $id)
                 ->with('success', 'El PDF ha sido enviado por correo electrónico correctamente');
         } catch (\Exception $e) {
             Log::error('Error al enviar PDF por email: ' . $e->getMessage());
+            
+            // Si es una solicitud AJAX, devolver respuesta JSON
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al enviar el correo: ' . $e->getMessage()], 500);
+            }
+            
             return redirect()->route('laboratorio.ver', $id)
                 ->with('error', 'Error al enviar el PDF por correo electrónico: ' . $e->getMessage());
+        }
+    }
+
+    // Método para actualizar el estado de enviado_por_correo
+    private function actualizarEstadoEnviado($id)
+    {
+        try {
+            // Preparar los datos para actualizar
+            $datos = [
+                'enviado_por_correo' => true
+            ];
+            
+            // Actualizar en la API
+            $response = $this->apiService->put("envio-muestras/{$id}/actualizar-estado-correo", $datos);
+            
+            if (!$response->successful()) {
+                Log::error('Error al actualizar estado de envío por correo: ' . $response->status());
+                return false;
+            }
+            
+            Log::info("Estado de envío por correo actualizado correctamente para ID: {$id}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar estado de envío por correo: ' . $e->getMessage());
+            return false;
         }
     }
 
@@ -381,13 +434,20 @@ class EnvioMuestraWebController extends Controller
     }
 
     // Método para enviar el email con el PDF adjunto
-    private function enviarEmailConPdf($pdf, $envio, $nombreSede, $correoUsuarioCreador = null)
+    private function enviarEmailConPdf($pdf, $envio, $nombreSede, $correoResponsableToma = null, $correoUsuarioCreador = null)
     {
         // Lista de destinatarios base
         $destinatarios = config('laboratorio.emails_destinatarios', [
             'jhon123seba@gmail.com',
-            "yeianaya18@gmail.com"
+            // "facturacion.caucalab@gmail.com",
+            "yeiserna14@gmail.com",
         ]);
+        
+        // Agregar el correo del responsable de toma si existe y no está ya en la lista
+        if ($correoResponsableToma && !in_array($correoResponsableToma, $destinatarios)) {
+            $destinatarios[] = $correoResponsableToma;
+            Log::info("Agregando correo del responsable de toma: {$correoResponsableToma}");
+        }
         
         // Agregar el correo del usuario creador si existe y no está ya en la lista
         if ($correoUsuarioCreador && !in_array($correoUsuarioCreador, $destinatarios)) {

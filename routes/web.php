@@ -71,7 +71,9 @@ Route::middleware(ApiAuthentication::class)->group(function () {
     Route::prefix('brigadas')->name('brigadas.')->group(function () {
         Route::get('/export/form', [BrigadaExportController::class, 'exportForm'])->name('export');
         Route::post('/export/excel', [BrigadaExportController::class, 'exportExcel'])->name('export.excel');
+        
     });
+
 
     // Rutas para encuestas
     Route::get('encuestas/export', [EncuestaExportController::class, 'exportForm'])->name('encuestas.export');

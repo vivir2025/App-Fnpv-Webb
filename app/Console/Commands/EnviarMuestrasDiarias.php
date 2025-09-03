@@ -83,8 +83,30 @@ class EnviarMuestrasDiarias extends Command
             // Obtener la sede para personalizar el asunto
             $nombreSede = $envioCompleto['sede']['nombre'] ?? $envioCompleto['sede']['nombresede'] ?? 'Sede desconocida';
             
+            // Obtener el correo del responsable de la toma
+            $correoResponsableToma = null;
+            if (!empty($envioCompleto['responsable_toma_id'])) {
+                $responseUsuario = $this->apiService->get("usuarios/{$envioCompleto['responsable_toma_id']}");
+                if ($responseUsuario->successful()) {
+                    $usuario = $responseUsuario->json();
+                    $correoResponsableToma = $usuario['correo'] ?? null;
+                    $this->info('Correo del responsable de toma encontrado: ' . $correoResponsableToma);
+                }
+            }
+            
+            // Obtener el correo del usuario creador
+            $correoUsuarioCreador = null;
+            if (!empty($envioCompleto['usuario_creador_id'])) {
+                $responseUsuario = $this->apiService->get("usuarios/{$envioCompleto['usuario_creador_id']}");
+                if ($responseUsuario->successful()) {
+                    $usuario = $responseUsuario->json();
+                    $correoUsuarioCreador = $usuario['correo'] ?? null;
+                    $this->info('Correo del usuario creador encontrado: ' . $correoUsuarioCreador);
+                }
+            }
+            
             // Enviar el correo con el PDF adjunto
-            $this->enviarEmail($pdf, $envioCompleto, $nombreSede);
+            $this->enviarEmail($pdf, $envioCompleto, $nombreSede, $correoResponsableToma, $correoUsuarioCreador);
             
             $this->info('Envío ID: ' . $envio['id'] . ' procesado correctamente.');
             
@@ -122,14 +144,26 @@ class EnviarMuestrasDiarias extends Command
         return $pdf;
     }
     
-    protected function enviarEmail($pdf, $envio, $nombreSede)
+    protected function enviarEmail($pdf, $envio, $nombreSede, $correoResponsableToma = null, $correoUsuarioCreador = null)
     {
         // Lista de destinatarios (puedes configurarla en el .env o en la base de datos)
         $destinatarios = config('laboratorio.emails_destinatarios', [
             'yeiserna14@gmail.com',
             'jhon123seba@gmail.com',
-            
+            // 'facturacion.caucalab@gmail.com',
         ]);
+        
+        // Agregar el correo del responsable de toma si existe y no está ya en la lista
+        if ($correoResponsableToma && !in_array($correoResponsableToma, $destinatarios)) {
+            $destinatarios[] = $correoResponsableToma;
+            Log::info("Agregando correo del responsable de toma: {$correoResponsableToma}");
+        }
+        
+        // Agregar el correo del usuario creador si existe y no está ya en la lista
+        if ($correoUsuarioCreador && !in_array($correoUsuarioCreador, $destinatarios)) {
+            $destinatarios[] = $correoUsuarioCreador;
+            Log::info("Agregando correo del usuario creador: {$correoUsuarioCreador}");
+        }
         
         // Nombre del archivo
         $filename = 'envio_muestras_' . $envio['id'] . '.pdf';
@@ -138,13 +172,20 @@ class EnviarMuestrasDiarias extends Command
         Mail::send('emails.envio_muestras', ['envio' => $envio], function ($message) use ($pdf, $filename, $destinatarios, $nombreSede, $envio) {
             $message->subject('Envío Planillas de Laboratorio - ' . $nombreSede . ' - ' . Carbon::parse($envio['fecha'])->format('d/m/Y'));
             
-            foreach ($destinatarios as $destinatario) {
-                $message->to($destinatario);
+            // Agregar el primer destinatario como principal
+            $message->to($destinatarios[0]);
+            
+            // Si hay más destinatarios, agregarlos como CC
+            for ($i = 1; $i < count($destinatarios); $i++) {
+                $message->cc($destinatarios[$i]);
             }
             
             $message->attachData($pdf->output(), $filename, [
                 'mime' => 'application/pdf',
             ]);
         });
+        
+        // Log para verificar que se envió correctamente
+        Log::info("Email enviado a: " . implode(', ', $destinatarios));
     }
 }
