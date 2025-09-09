@@ -11,8 +11,10 @@ use App\Http\Controllers\EncuestaExportController;
 use App\Http\Controllers\FindriskExportController;
 use App\Http\Controllers\AfinamientoExportController;
 use App\Http\Controllers\TamizajeExportController;
+use App\Http\Controllers\LogViewController;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Middleware\ApiAuthentication;
+use App\Http\Middleware\AdminOnly;
 
 // Ruta raíz
 Route::get('/', function () {
@@ -30,7 +32,7 @@ Route::middleware('guest')->group(function () {
 
 // Rutas protegidas con autenticación
 Route::middleware(ApiAuthentication::class)->group(function () {
-    
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
@@ -71,9 +73,7 @@ Route::middleware(ApiAuthentication::class)->group(function () {
     Route::prefix('brigadas')->name('brigadas.')->group(function () {
         Route::get('/export/form', [BrigadaExportController::class, 'exportForm'])->name('export');
         Route::post('/export/excel', [BrigadaExportController::class, 'exportExcel'])->name('export.excel');
-        
     });
-
 
     // Rutas para encuestas
     Route::get('encuestas/export', [EncuestaExportController::class, 'exportForm'])->name('encuestas.export');
@@ -81,7 +81,6 @@ Route::middleware(ApiAuthentication::class)->group(function () {
     
     // Rutas para FINDRISK
     Route::prefix('findrisk')->name('findrisk.')->group(function () {
-        // Ruta principal para findrisk (vista index)
         Route::get('/', [FindriskExportController::class, 'index'])->name('index');
         Route::get('/exportar', [FindriskExportController::class, 'index'])->name('export');
         Route::post('/exportar', [FindriskExportController::class, 'exportar'])->name('exportar');
@@ -99,21 +98,30 @@ Route::middleware(ApiAuthentication::class)->group(function () {
         Route::post('/export/excel', [TamizajeExportController::class, 'exportExcel'])->name('export.excel');
     });
 
-
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+});
+
+// ✅ RUTAS DE LOGS - SOLO PARA ADMINISTRADORES (FUERA DEL GRUPO PRINCIPAL)
+Route::middleware([ApiAuthentication::class, AdminOnly::class])->group(function () {
+    Route::prefix('logs')->name('logs.')->group(function () {
+        Route::get('/', [LogViewController::class, 'index'])->name('index');
+        Route::get('/stats', [LogViewController::class, 'getStats'])->name('stats');
+        Route::get('/data', [LogViewController::class, 'getData'])->name('data');
+        Route::get('/{id}', [LogViewController::class, 'show'])->name('show');
+    });
 });
 
 // Ruta para manejar errores 404 (opcional)
 Route::fallback(function () {
     return response()->view('errors.404', [], 404);
-        });
-        
+});
+
 Route::get('/test-email', function () {
     try {
         Mail::raw('Prueba de correo desde Laravel', function($message) {
             $message->to('tecnologia@nacerparavivir.org')
                     ->subject('Prueba de correo');
-});
+        });
         
         return 'Correo enviado correctamente';
     } catch (\Exception $e) {

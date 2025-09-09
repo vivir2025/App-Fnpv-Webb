@@ -394,6 +394,22 @@
                         <span>Envío de Muestras</span>
                     </a>
                 </li>
+                
+                <!-- ✅ LOGS - SOLO PARA ADMINISTRADORES -->
+                @php
+                    $usuario = session('usuario', []);
+                    $rol = is_array($usuario) ? ($usuario['rol'] ?? '') : '';
+                @endphp
+                
+                @if(in_array($rol, ['admin', 'administrador']))
+                    <li class="nav-item {{ request()->routeIs('logs.*') ? 'menu-open' : '' }}">
+                        <a class="nav-link {{ request()->routeIs('logs.*') ? 'active' : '' }}" href="{{ route('logs.index') }}">
+                            <i class="fas fa-list-alt"></i>
+                            <span>Logs del Sistema</span>
+                        </a>
+                    </li>
+                @endif
+                
                 <li class="nav-item">
                     <a class="nav-link submenu-toggle {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') ? 'active' : '' }}" href="#" onclick="toggleSubmenu(event, this)">
                         <i class="fas fa-chart-bar"></i>
@@ -437,9 +453,6 @@
                                 <span>Exportar Tamizajes</span>
                             </a>
                         </li>
-
-
-                        <!-- Puedes agregar más opciones de submenu aquí -->
                     </ul>
                 </li>
 
@@ -476,12 +489,20 @@
                     <div class="dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle text-success me-2"></i>
-                            <span class="d-none d-sm-inline">{{ Auth::user()->nombre ?? 'Usuario' }}</span>
+                            <span class="d-none d-sm-inline">
+                                {{ is_array($usuario) ? ($usuario['nombre'] ?? 'Usuario') : 'Usuario' }}
+                                @if($rol)
+                                    <small class="text-muted">({{ ucfirst($rol) }})</small>
+                                @endif
+                            </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li>
                                 <a class="dropdown-item" href="#" onclick="return false;">
                                     <i class="fas fa-user-cog text-success me-2"></i> Perfil
+                                    @if($rol)
+                                        <small class="text-muted d-block">Rol: {{ ucfirst($rol) }}</small>
+                                    @endif
                                 </a>
                             </li>
                             <li><hr class="dropdown-divider"></li>

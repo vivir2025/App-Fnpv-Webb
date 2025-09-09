@@ -39,20 +39,21 @@ class AuthController extends Controller
 
             $data = $response->json();
             
-            // Guardar información en la sesión
+            // ✅ GUARDAR INFORMACIÓN COMPLETA EN LA SESIÓN
             session(['token' => $data['token']]);
             session(['usuario' => $data['usuario']]);
             session(['sede' => $data['sede'] ?? null]);
 
+            // ✅ LOG PARA VERIFICAR EL ROL
+            Log::info('Usuario autenticado', [
+                'usuario' => $data['usuario']['nombre'] ?? 'Sin nombre',
+                'rol' => $data['usuario']['rol'] ?? 'Sin rol',
+                'sede' => $data['sede']['nombre'] ?? 'Sin sede'
+            ]);
+
             // Autenticar al usuario en Laravel
-            // Esto permite usar Auth::user() en toda la aplicación
-            Auth::loginUsingId($data['usuario']['id'] ?? 1); // Usa el ID del usuario si está disponible
+            Auth::loginUsingId($data['usuario']['id'] ?? 1);
             
-            // Si no tienes un ID, puedes crear un objeto de usuario y autenticarlo
-            // $user = new \stdClass();
-            // $user->nombre = $data['usuario']['nombre'] ?? $data['usuario'];
-            // $user->id = 1; // Un ID ficticio
-            // Auth::login($user);
             return redirect()->route('dashboard');
         } catch (\Exception $e) {
             Log::error('Error en login: ' . $e->getMessage());
@@ -71,13 +72,13 @@ class AuthController extends Controller
             }
             
             session()->flush();
-            Auth::logout(); // Cerrar sesión en Laravel
+            Auth::logout();
             
             return redirect()->route('login');
         } catch (\Exception $e) {
             Log::error('Error en logout: ' . $e->getMessage());
             session()->flush();
-            Auth::logout(); // Cerrar sesión en Laravel
+            Auth::logout();
             return redirect()->route('login');
         }
     }
