@@ -149,8 +149,9 @@ class EnviarMuestrasDiarias extends Command
         // Lista de destinatarios (puedes configurarla en el .env o en la base de datos)
         $destinatarios = config('laboratorio.emails_destinatarios', [
             'yeiserna14@gmail.com',
-            'jhon123seba@gmail.com',
+            'atencionalusuario.caucalab@gmail.com',
             // 'facturacion.caucalab@gmail.com',
+            'julianvillalba91@hotmail.com',
         ]);
         
         // Agregar el correo del responsable de toma si existe y no está ya en la lista

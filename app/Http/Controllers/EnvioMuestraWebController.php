@@ -438,9 +438,10 @@ class EnvioMuestraWebController extends Controller
     {
         // Lista de destinatarios base
         $destinatarios = config('laboratorio.emails_destinatarios', [
-            'jhon123seba@gmail.com',
+            'atencionalusuario.caucalab@gmail.com',
             // "facturacion.caucalab@gmail.com",
             "yeiserna14@gmail.com",
+            'julianvillalba91@hotmail.com',
         ]);
         
         // Agregar el correo del responsable de toma si existe y no está ya en la lista
