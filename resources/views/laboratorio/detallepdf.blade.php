@@ -248,7 +248,7 @@
                 <th colspan="5" class="bg-blue">MUESTRAS</th>
                 <th colspan="3" class="bg-purple">LILA</th>
                 <th colspan="5" class="bg-yellow">AMARILLO</th>
-                <th colspan="8" class="bg-green">ORINA</th>
+                <th colspan="10" class="bg-green">ORINA</th>
                 <th colspan="10" class="bg-yellow">NEFRO</th>
             </tr>
             <tr>
@@ -267,7 +267,7 @@
                 <th rowspan="2" class="bg-lightyellow col-tiny">PL</th>
                 <th rowspan="2" class="bg-lightyellow col-tiny">AU</th>
                 <th rowspan="2" class="bg-lightyellow col-tiny">BUN</th>
-                <th colspan="2" class="bg-mint">ESP</th>
+                <th colspan="4" class="bg-mint">ESP</th>
                 <th colspan="6" class="bg-mint">24H</th>
                 <th colspan="8" class="bg-lightyellow">AMARILLO</th>
                 <th colspan="2" class="bg-peach">FORR</th>
@@ -275,6 +275,8 @@
             <tr>
                 <th class="bg-mint col-medium">CREA/ALB</th>
                 <th class="bg-mint col-tiny">PL</th>
+                <th class="bg-mint col-medium">MICRO</th>
+                <th class="bg-mint col-medium">RE CRE/ORINA</th>
                 <th class="bg-mint col-medium">DCRE24H</th>
                 <th class="bg-mint col-medium">ALB24H</th>
                 <th class="bg-mint col-medium">BUNO24H</th>
@@ -341,11 +343,13 @@
                     <td class="bg-lightyellow text-center">{{ $detalle['au'] ?? '' }}</td>
                     <td class="bg-lightyellow text-center">{{ $detalle['bun'] ?? '' }}</td>
                     
-                    <!-- ORINA ESP -->
+                    <!-- ORINA ESP - 4 columnas -->
                     <td class="bg-mint text-center">{{ $detalle['relacion_crea_alb'] ?? '' }}</td>
                     <td class="bg-mint text-center">{{ $detalle['pl'] ?? '' }}</td>
+                    <td class="bg-mint text-center">{{ $detalle['microo'] ?? '' }}</td>
+                    <td class="bg-mint text-center">{{ $detalle['creaori'] ?? '' }}</td>
                     
-                    <!-- ORINA24H -->
+                    <!-- ORINA24H - 6 columnas -->
                     <td class="bg-mint text-center">{{ $detalle['dcre24h'] ?? '' }}</td>
                     <td class="bg-mint text-center">{{ $detalle['alb24h'] ?? '' }}</td>
                     <td class="bg-mint text-center">{{ $detalle['buno24h'] ?? '' }}</td>
