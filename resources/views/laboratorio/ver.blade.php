@@ -199,7 +199,7 @@
                                     <tr>
                                         <!-- ORINA ESP - 4 columnas -->
                                         <th class="text-center" style="background-color: #F0FFF0;">RELACION CREA/ALB</th>
-                                        <th class="text-center" style="background-color: #F0FFF0;">PL</th>
+                                        <th class="text-center" style="background-color: #F0FFF0;">PO</th>
                                         <th class="text-center" style="background-color: #F0FFF0;">MICRO</th>
                                         <th class="text-center" style="background-color: #F0FFF0;">RE CRE/ORINA</th>
                                         <!-- ORINA 24H - 6 columnas -->
