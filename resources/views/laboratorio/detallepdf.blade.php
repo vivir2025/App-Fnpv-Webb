@@ -274,7 +274,7 @@
             </tr>
             <tr>
                 <th class="bg-mint col-medium">CREA/ALB</th>
-                <th class="bg-mint col-tiny">PL</th>
+                <th class="bg-mint col-tiny">PO</th>
                 <th class="bg-mint col-medium">MICRO</th>
                 <th class="bg-mint col-medium">RE CRE/ORINA</th>
                 <th class="bg-mint col-medium">DCRE24H</th>
