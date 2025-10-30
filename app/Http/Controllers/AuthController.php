@@ -44,17 +44,32 @@ class AuthController extends Controller
             session(['usuario' => $data['usuario']]);
             session(['sede' => $data['sede'] ?? null]);
 
+            // ✅ OBTENER EL ROL DEL USUARIO
+            $rol = strtolower($data['usuario']['rol'] ?? '');
+
             // ✅ LOG PARA VERIFICAR EL ROL
             Log::info('Usuario autenticado', [
                 'usuario' => $data['usuario']['nombre'] ?? 'Sin nombre',
-                'rol' => $data['usuario']['rol'] ?? 'Sin rol',
+                'rol' => $rol,
                 'sede' => $data['sede']['nombre'] ?? 'Sin sede'
             ]);
 
             // Autenticar al usuario en Laravel
             Auth::loginUsingId($data['usuario']['id'] ?? 1);
             
-            return redirect()->route('dashboard');
+            // ✅ REDIRIGIR SEGÚN EL ROL
+            if (in_array($rol, ['aux', 'auxiliar'])) {
+                // Auxiliares van directo a visitas
+                Log::info('Redirigiendo auxiliar a visitas');
+                return redirect()->route('visitas.buscar')
+                    ->with('success', '¡Bienvenido! ' . ($data['usuario']['nombre'] ?? 'Usuario'));
+            } else {
+                // Otros roles (admin, administrador, etc.) van al dashboard
+                Log::info('Redirigiendo ' . $rol . ' a dashboard');
+                return redirect()->route('dashboard')
+                    ->with('success', '¡Bienvenido! ' . ($data['usuario']['nombre'] ?? 'Usuario'));
+            }
+            
         } catch (\Exception $e) {
             Log::error('Error en login: ' . $e->getMessage());
             return back()->withErrors([
@@ -74,7 +89,8 @@ class AuthController extends Controller
             session()->flush();
             Auth::logout();
             
-            return redirect()->route('login');
+            return redirect()->route('login')
+                ->with('success', 'Sesión cerrada correctamente.');
         } catch (\Exception $e) {
             Log::error('Error en logout: ' . $e->getMessage());
             session()->flush();

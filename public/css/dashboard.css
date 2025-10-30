@@ -1,0 +1,353 @@
+/* ============================================
+   DASHBOARD STYLES - MAPA Y CONTROLES
+   ============================================ */
+
+/* Mapa Principal */
+#map {
+    height: 500px;
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e9ecef;
+}
+
+/* Mapa Pantalla Completa */
+#map-fullscreen {
+    width: 100%;
+    border-radius: 0;
+    height: calc(100vh - 120px);
+}
+
+.modal-fullscreen .modal-body {
+    padding: 0 !important;
+}
+
+.modal-fullscreen .modal-header {
+    border-radius: 0;
+    padding: 15px 20px;
+}
+
+.modal-fullscreen .modal-content {
+    border: none;
+    border-radius: 0;
+}
+
+/* ============================================
+   BOTONES Y CONTROLES
+   ============================================ */
+
+/* Botón Expandir Mapa */
+#btn-expandir-mapa {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+#btn-expandir-mapa:hover {
+    background-color: rgba(255,255,255,0.1);
+    transform: scale(1.05);
+}
+
+/* Selector de Sedes */
+.sede-selector {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.sede-btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.sede-btn:hover {
+    transform: translateY(-2px);
+}
+
+.sede-btn.active {
+    background-color: #198754;
+    border-color: #198754;
+    color: white;
+    box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+}
+
+/* ============================================
+   FILTROS DE FECHA
+   ============================================ */
+
+.filtro-fecha-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+    border: 1px solid #dee2e6;
+}
+
+.filtro-fecha-container h6 {
+    color: #198754;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.date-input-group {
+    position: relative;
+}
+
+.date-input-group input[type="date"] {
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.date-input-group input[type="date"]:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.btn-filtrar {
+    border-radius: 8px;
+    padding: 10px 25px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-filtrar:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+}
+
+.btn-limpiar {
+    border-radius: 8px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+
+/* ============================================
+   TARJETAS Y ESTADÍSTICAS
+   ============================================ */
+
+.stats-card {
+    transition: all 0.3s;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.card {
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    padding: 15px 20px;
+}
+
+.display-4 {
+    font-weight: 600;
+    color: #198754;
+}
+
+/* ============================================
+   CONTROLES DE LEAFLET
+   ============================================ */
+
+.leaflet-control-layers {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+}
+
+.leaflet-control-layers-expanded {
+    padding: 10px !important;
+}
+
+.leaflet-control-zoom {
+    border-radius: 8px !important;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+}
+
+.leaflet-control-zoom a {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
+    border: none !important;
+}
+
+.leaflet-control-zoom a:hover {
+    background: rgba(25, 135, 84, 0.9) !important;
+    color: white !important;
+}
+
+/* Leyenda Personalizada */
+.custom-legend {
+    background: rgba(255, 255, 255, 0.95) !important;
+    padding: 12px !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   INDICADORES Y MENSAJES
+   ============================================ */
+
+.loading-indicator {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.loading-fullscreen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+.no-data-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+}
+
+/* ============================================
+   TABLAS
+   ============================================ */
+
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    padding: 12px;
+}
+
+.table tbody td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+/* Barra de Progreso */
+.progress-bar {
+    min-width: 2em;
+    transition: width 1s ease;
+}
+
+/* ============================================
+   GRÁFICOS
+   ============================================ */
+
+canvas {
+    min-height: 300px;
+}
+
+/* ============================================
+   ANIMACIONES
+   ============================================ */
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.fade-in-row {
+    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    #map {
+        height: 350px;
+    }
+    
+    .sede-btn {
+        width: 100%;
+        margin-right: 0;
+    }
+    
+    .filtro-fecha-container {
+        padding: 15px;
+    }
+}
+
+/* Estilos para el buscador de territorio */
+#loading-territorio {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+#territorio-seleccionado {
+    border-left: 4px solid #198754;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.custom-div-icon {
+    background: transparent;
+    border: none;
+}
+
+/* Animación de marcadores */
+.leaflet-marker-icon {
+    animation: markerBounce 0.5s ease;
+}
+
+@keyframes markerBounce {
+    0% {
+        transform: translateY(-20px) scale(0);
+        opacity: 0;
+    }
+    50% {
+        transform: translateY(5px) scale(1.1);
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+}
