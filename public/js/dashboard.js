@@ -79,14 +79,26 @@ function cargarDatosPorSede(sedeId, aplicarFiltroFecha = false) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            // Intentar obtener más detalles del error
+            return response.json().then(errorData => {
+                throw new Error(errorData.error || errorData.mensaje || `Error HTTP: ${response.status}`);
+            }).catch(parseError => {
+                // Si no se puede parsear JSON, usar mensaje genérico
+                throw new Error(`Error del servidor: ${response.status} - ${response.statusText}`);
+            });
         }
         return response.json();
     })
     .then(data => {
         ocultarIndicadorCarga();
         
-        // Verificar estructura de datos
+        // Si hay un error en los datos, mostrarlo
+        if (data.error) {
+            mostrarError(data.error);
+            return;
+        }
+        
+        // Verificar estructura de datos con valores predeterminados seguros
         if (!data.pacientes) data.pacientes = [];
         if (!data.estadisticas) data.estadisticas = { total_pacientes: 0, visitas_mes: 0, promedio_diario: 0 };
         if (!data.grafico_diario) data.grafico_diario = [];
@@ -111,9 +123,14 @@ function cargarDatosPorSede(sedeId, aplicarFiltroFecha = false) {
         }
     })
     .catch(error => {
-        console.error('Error al cargar datos:', error);
+        console.error('Error detallado al cargar datos:', {
+            mensaje: error.message,
+            stack: error.stack,
+            sede: sedeId,
+            url: url
+        });
         ocultarIndicadorCarga();
-        mostrarError(`Error al cargar datos: ${error.message}. Por favor, intente nuevamente.`);
+        mostrarError(`Error al cargar datos: ${error.message}. Por favor, verifique su conexión y vuelva a intentarlo.`);
     });
 }
 

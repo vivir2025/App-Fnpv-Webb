@@ -24,12 +24,10 @@ class DashboardController extends Controller
         $rol = strtolower($usuario['rol'] ?? '');
         $sedeUsuario = $usuario['idsede'] ?? null;
         
-        // Obtener sedes con caché de 1 hora
+        // Obtener sedes
         try {
-            $todasLasSedes = cache()->remember('sedes_dashboard', 3600, function () {
-                $response = $this->apiService->get('sedes');
-                return $response->successful() ? $response->json() : [];
-            });
+            $response = $this->apiService->get('sedes');
+            $todasLasSedes = $response->successful() ? $response->json() : [];
             
             // Filtrar sedes según el rol
             if (in_array($rol, ['admin', 'administrador'])) {
@@ -63,44 +61,56 @@ class DashboardController extends Controller
     
     public function getDatos(Request $request)
     {
-        $sedeIdSolicitada = $request->input('sede_id', 'todas');
-        
-        // Validar permisos del usuario
-        $usuario = session('usuario');
-        $rol = strtolower($usuario['rol'] ?? '');
-        $sedeUsuario = $usuario['idsede'] ?? null;
-        
-        // Aplicar restricciones según el rol
-        if (in_array($rol, ['jefe', 'coordinador'])) {
-            // Jefe solo puede ver datos de su sede
-            if ($sedeIdSolicitada !== 'todas' && $sedeIdSolicitada !== $sedeUsuario) {
+        try {
+            $sedeIdSolicitada = $request->input('sede_id', 'todas');
+            
+            // Validar permisos del usuario
+            $usuario = session('usuario');
+            if (!$usuario) {
+                Log::error('Dashboard getDatos: No hay usuario en sesión');
                 return response()->json([
-                    'error' => 'No tiene permisos para ver datos de esta sede'
+                    'error' => 'Sesión expirada'
+                ], 401);
+            }
+            
+            $rol = strtolower($usuario['rol'] ?? '');
+            $sedeUsuario = $usuario['idsede'] ?? null;
+            
+            // Aplicar restricciones según el rol
+            if (in_array($rol, ['jefe', 'coordinador'])) {
+                // Jefe solo puede ver datos de su sede
+                if ($sedeIdSolicitada !== 'todas' && $sedeIdSolicitada !== $sedeUsuario) {
+                    return response()->json([
+                        'error' => 'No tiene permisos para ver datos de esta sede'
+                    ], 403);
+                }
+                // Forzar a que solo vea su sede
+                $sedeId = $sedeUsuario;
+            } elseif (in_array($rol, ['admin', 'administrador'])) {
+                // Administrador puede ver cualquier sede
+                $sedeId = $sedeIdSolicitada;
+            } else {
+                // Otros roles no tienen acceso
+                return response()->json([
+                    'error' => 'No tiene permisos para acceder al dashboard'
                 ], 403);
             }
-            // Forzar a que solo vea su sede
-            $sedeId = $sedeUsuario;
-        } elseif (in_array($rol, ['admin', 'administrador'])) {
-            // Administrador puede ver cualquier sede
-            $sedeId = $sedeIdSolicitada;
-        } else {
-            // Otros roles no tienen acceso
-            return response()->json([
-                'error' => 'No tiene permisos para acceder al dashboard'
-            ], 403);
-        }
-        
-        try {
+            
             // 1. Obtener pacientes con coordenadas
             $pacientes = $this->obtenerPacientesConCoordenadas($sedeId);
+            
             // 2. Obtener visitas para estadísticas
             $visitas = $this->obtenerVisitas($sedeId);
+            
             // 3. Calcular estadísticas generales
-            $estadisticas = $this->calcularEstadisticas($visitas, $pacientes); 
+            $estadisticas = $this->calcularEstadisticas($visitas, $pacientes);
+            
             // 4. Preparar datos para gráfico diario
             $graficoDiario = $this->prepararGraficoDiario($visitas);
+            
             // 5. Preparar datos para gráfico de sedes
             $graficoSedes = $this->prepararGraficoSedes($visitas);
+            
             // 6. Preparar datos de auxiliares
             $auxiliares = $this->prepararDatosAuxiliares($visitas, $sedeId);
             
@@ -113,30 +123,44 @@ class DashboardController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            Log::error('Error en datos del dashboard: ' . $e->getMessage());
+            Log::error('Error en getDatos del dashboard', [
+                'mensaje' => $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
-                'error' => 'Error al cargar datos: ' . $e->getMessage()
+                'error' => 'Error al cargar datos del dashboard',
+                'mensaje' => config('app.debug') ? $e->getMessage() : 'Error interno del servidor',
+                'pacientes' => [],
+                'estadisticas' => ['total_pacientes' => 0, 'visitas_mes' => 0, 'promedio_diario' => 0],
+                'grafico_diario' => [],
+                'grafico_sedes' => [],
+                'auxiliares' => []
             ], 500);
         }
     }
 
     private function obtenerPacientesConCoordenadas($sedeId)
     {
-        // Cachear pacientes por 5 minutos
-        $cacheKey = "pacientes_coords_{$sedeId}";
-        
-        return cache()->remember($cacheKey, 300, function () use ($sedeId) {
+        try {
             $response = $this->apiService->get('pacientes');
             
             if (!$response->successful()) {
-                Log::error('Error al obtener pacientes: ' . $response->status());
+                Log::error('Error al obtener pacientes', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
                 return [];
             }
 
             $pacientes = $response->json();
             
             if (!is_array($pacientes)) {
-                Log::error('La respuesta de pacientes no es un array');
+                Log::error('La respuesta de pacientes no es un array', [
+                    'tipo' => gettype($pacientes)
+                ]);
                 return [];
             }
             
@@ -164,7 +188,14 @@ class DashboardController extends Controller
             }
             
             return $pacientesFiltrados;
-        });
+            
+        } catch (\Exception $e) {
+            Log::error('Error en obtenerPacientesConCoordenadas', [
+                'error' => $e->getMessage(),
+                'sede_id' => $sedeId
+            ]);
+            return [];
+        }
     }
 
     private function obtenerVisitas($sedeId)
