@@ -19,31 +19,83 @@ class DashboardController extends Controller
 
     public function index()
     {
-        // Obtener sedes para los botones de filtro
+        // Obtener información del usuario
+        $usuario = session('usuario');
+        $rol = strtolower($usuario['rol'] ?? '');
+        $sedeUsuario = $usuario['idsede'] ?? null;
+        
+        // Obtener sedes con caché de 1 hora
         try {
-            $response = $this->apiService->get('sedes');
-            $sedes = $response->successful() ? $response->json() : [];
+            $todasLasSedes = cache()->remember('sedes_dashboard', 3600, function () {
+                $response = $this->apiService->get('sedes');
+                return $response->successful() ? $response->json() : [];
+            });
+            
+            // Filtrar sedes según el rol
+            if (in_array($rol, ['admin', 'administrador'])) {
+                // Administrador ve todas las sedes
+                $sedes = $todasLasSedes;
+            } elseif (in_array($rol, ['jefe', 'coordinador'])) {
+                // Jefe solo ve su sede
+                $sedes = array_filter($todasLasSedes, function($sede) use ($sedeUsuario) {
+                    return ($sede['id'] ?? null) === $sedeUsuario;
+                });
+            } else {
+                // Otros roles sin acceso específico
+                $sedes = [];
+            }
+            
         } catch (\Exception $e) {
             Log::error('Error al obtener sedes: ' . $e->getMessage());
             $sedes = [];
         }
 
-        // Pasar el token a la vista
+        // Pasar datos a la vista
         $token = session('token');
+        $permisos = [
+            'puede_ver_todas_sedes' => in_array($rol, ['admin', 'administrador']),
+            'es_jefe' => in_array($rol, ['jefe', 'coordinador']),
+            'sede_id' => $sedeUsuario
+        ];
 
-        return view('dashboard.index', compact('sedes', 'token'));
+        return view('dashboard.index', compact('sedes', 'token', 'permisos', 'usuario'));
     }
     
     public function getDatos(Request $request)
     {
-        $sedeId = $request->input('sede_id', 'todas');
+        $sedeIdSolicitada = $request->input('sede_id', 'todas');
+        
+        // Validar permisos del usuario
+        $usuario = session('usuario');
+        $rol = strtolower($usuario['rol'] ?? '');
+        $sedeUsuario = $usuario['idsede'] ?? null;
+        
+        // Aplicar restricciones según el rol
+        if (in_array($rol, ['jefe', 'coordinador'])) {
+            // Jefe solo puede ver datos de su sede
+            if ($sedeIdSolicitada !== 'todas' && $sedeIdSolicitada !== $sedeUsuario) {
+                return response()->json([
+                    'error' => 'No tiene permisos para ver datos de esta sede'
+                ], 403);
+            }
+            // Forzar a que solo vea su sede
+            $sedeId = $sedeUsuario;
+        } elseif (in_array($rol, ['admin', 'administrador'])) {
+            // Administrador puede ver cualquier sede
+            $sedeId = $sedeIdSolicitada;
+        } else {
+            // Otros roles no tienen acceso
+            return response()->json([
+                'error' => 'No tiene permisos para acceder al dashboard'
+            ], 403);
+        }
         
         try {
             // 1. Obtener pacientes con coordenadas
             $pacientes = $this->obtenerPacientesConCoordenadas($sedeId);
             // 2. Obtener visitas para estadísticas
             $visitas = $this->obtenerVisitas($sedeId);
-            // 3. Calcular estadísticas generales (le pasamos los pacientes también)
+            // 3. Calcular estadísticas generales
             $estadisticas = $this->calcularEstadisticas($visitas, $pacientes); 
             // 4. Preparar datos para gráfico diario
             $graficoDiario = $this->prepararGraficoDiario($visitas);
@@ -51,6 +103,7 @@ class DashboardController extends Controller
             $graficoSedes = $this->prepararGraficoSedes($visitas);
             // 6. Preparar datos de auxiliares
             $auxiliares = $this->prepararDatosAuxiliares($visitas, $sedeId);
+            
             return response()->json([
                 'pacientes' => $pacientes,
                 'estadisticas' => $estadisticas,
@@ -69,35 +122,49 @@ class DashboardController extends Controller
 
     private function obtenerPacientesConCoordenadas($sedeId)
     {
-        $response = $this->apiService->get('pacientes');
+        // Cachear pacientes por 5 minutos
+        $cacheKey = "pacientes_coords_{$sedeId}";
         
-        if (!$response->successful()) {
-            Log::error('Error al obtener pacientes: ' . $response->status());
-            return [];
-        }
+        return cache()->remember($cacheKey, 300, function () use ($sedeId) {
+            $response = $this->apiService->get('pacientes');
+            
+            if (!$response->successful()) {
+                Log::error('Error al obtener pacientes: ' . $response->status());
+                return [];
+            }
 
-        $pacientes = $response->json();
-        
-        // Verificar que pacientes sea un array
-        if (!is_array($pacientes)) {
-            Log::error('La respuesta de pacientes no es un array');
-            return [];
-        }
-        
-        // Filtrar pacientes con coordenadas válidas
-        $pacientesFiltrados = collect($pacientes)->filter(function($paciente) {
-            return isset($paciente['latitud']) && isset($paciente['longitud']) && 
-                   !empty($paciente['latitud']) && !empty($paciente['longitud']);
+            $pacientes = $response->json();
+            
+            if (!is_array($pacientes)) {
+                Log::error('La respuesta de pacientes no es un array');
+                return [];
+            }
+            
+            // Filtrar y optimizar en una sola pasada
+            $pacientesFiltrados = [];
+            foreach ($pacientes as $paciente) {
+                // Verificar coordenadas
+                if (empty($paciente['latitud']) || empty($paciente['longitud'])) {
+                    continue;
+                }
+                
+                // Filtrar por sede
+                if ($sedeId !== 'todas' && ($paciente['idsede'] ?? null) != $sedeId) {
+                    continue;
+                }
+                
+                // Solo devolver datos necesarios para el mapa
+                $pacientesFiltrados[] = [
+                    'id' => $paciente['id'] ?? null,
+                    'latitud' => $paciente['latitud'],
+                    'longitud' => $paciente['longitud'],
+                    'nombre' => ($paciente['nombre'] ?? '') . ' ' . ($paciente['apellido'] ?? ''),
+                    'identificacion' => $paciente['identificacion'] ?? ''
+                ];
+            }
+            
+            return $pacientesFiltrados;
         });
-        
-        // Filtrar por sede si es necesario
-        if ($sedeId !== 'todas') {
-            $pacientesFiltrados = $pacientesFiltrados->filter(function($paciente) use ($sedeId) {
-                return isset($paciente['idsede']) && $paciente['idsede'] == $sedeId;
-            });
-        }
-        
-        return $pacientesFiltrados->values()->all();
     }
 
     private function obtenerVisitas($sedeId)
@@ -239,50 +306,62 @@ class DashboardController extends Controller
         return $resultado;
     }
 
-    // REEMPLAZA TODA LA FUNCIÓN `prepararDatosAuxiliares` CON ESTA VERSIÓN MEJORADA
+    // Optimizar prepararDatosAuxiliares con caché
     private function prepararDatosAuxiliares($visitas, $sedeIdFiltro)
     {
         try {
-            // 1. Obtener todas las sedes para mapear IDs a nombres
-            $mapaSedes = [];
-            $responseSedes = $this->apiService->get('sedes');
-            if ($responseSedes->successful() && is_array($responseSedes->json())) {
-                foreach ($responseSedes->json() as $sede) {
-                    if (isset($sede['id'])) {
-                        $mapaSedes[$sede['id']] = $sede['nombresede'] ?? "Sede {$sede['id']}";
+            // 1. Obtener sedes con caché
+            $mapaSedes = cache()->remember('sedes_map', 3600, function () {
+                $mapaSedes = [];
+                $responseSedes = $this->apiService->get('sedes');
+                if ($responseSedes->successful() && is_array($responseSedes->json())) {
+                    foreach ($responseSedes->json() as $sede) {
+                        if (isset($sede['id'])) {
+                            $mapaSedes[$sede['id']] = $sede['nombresede'] ?? "Sede {$sede['id']}";
+                        }
                     }
                 }
-            }
-
-            // 2. Obtener todos los auxiliares
-            $responseAuxiliares = $this->apiService->get('usuarios');
-            if (!$responseAuxiliares->successful() || !is_array($responseAuxiliares->json())) {
-                Log::error('No se pudo obtener la lista de usuarios/auxiliares de la API.');
-                return $this->generarAuxiliaresPredeterminados($visitas); // Fallback
-            }
-            
-            $todosLosUsuarios = collect($responseAuxiliares->json());
-            $auxiliares = $todosLosUsuarios->filter(function($usuario) {
-                $rol = strtolower($usuario['rol'] ?? '');
-                return in_array($rol, ['aux', 'auxiliar']);
+                return $mapaSedes;
             });
 
-            // 3. Filtrar auxiliares por la sede seleccionada, si aplica
+            // 2. Obtener auxiliares con caché de 10 minutos
+            $todosLosAuxiliares = cache()->remember('auxiliares_list', 600, function () {
+                $responseAuxiliares = $this->apiService->get('usuarios');
+                if (!$responseAuxiliares->successful() || !is_array($responseAuxiliares->json())) {
+                    return [];
+                }
+                
+                return collect($responseAuxiliares->json())->filter(function($usuario) {
+                    $rol = strtolower($usuario['rol'] ?? '');
+                    return in_array($rol, ['aux', 'auxiliar']);
+                })->all();
+            });
+
+            if (empty($todosLosAuxiliares)) {
+                return [];
+            }
+
+            $auxiliares = collect($todosLosAuxiliares);
+
+            // 3. Filtrar auxiliares por la sede seleccionada
             if ($sedeIdFiltro !== 'todas') {
                 $auxiliares = $auxiliares->filter(function($aux) use ($sedeIdFiltro) {
                     return ($aux['idsede'] ?? $aux['sede_id'] ?? null) == $sedeIdFiltro;
                 });
             }
             
-            // 4. Contar visitas por usuario (del mes actual)
+            // 4. Contar visitas por usuario (optimizado)
             $inicioMes = Carbon::now()->startOfMonth();
-            $visitasMes = collect($visitas)->filter(function($v) use ($inicioMes) {
-                return isset($v['fecha']) && Carbon::parse($v['fecha'])->gte($inicioMes);
-            });
-
-            $conteoVisitas = $visitasMes->countBy(function ($visita) {
-                return $visita['idusuario'] ?? $visita['usuario_id'] ?? null;
-            });
+            $conteoVisitas = [];
+            
+            foreach ($visitas as $v) {
+                if (isset($v['fecha']) && Carbon::parse($v['fecha'])->gte($inicioMes)) {
+                    $userId = $v['idusuario'] ?? $v['usuario_id'] ?? null;
+                    if ($userId) {
+                        $conteoVisitas[$userId] = ($conteoVisitas[$userId] ?? 0) + 1;
+                    }
+                }
+            }
 
             // 5. Construir el resultado final
             $resultado = [];

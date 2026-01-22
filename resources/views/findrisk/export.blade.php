@@ -54,6 +54,20 @@
                 </ul>
             </div>
         @endif
+        
+        @if (session('warning'))
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {{ session('warning') }}
+            </div>
+        @endif
+        
+        @if (session('success'))
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ session('success') }}
+            </div>
+        @endif
 
         <form action="{{ route('findrisk.exportar') }}" method="POST">
             @csrf
@@ -102,22 +116,33 @@
                         <div class="info-content">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="sede_id">Sede</label>
-                                        <select class="form-control @error('sede_id') is-invalid @enderror" id="sede_id" name="sede_id">
-                                            <option value="">Todas las sedes</option>
-                                            @foreach ($sedes as $sede)
-                                                <option value="{{ $sede['id'] }}" {{ old('sede_id') == $sede['id'] ? 'selected' : '' }}>
-                                                    {{ $sede['nombresede'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        @error('sede_id')
-                                            <span class="invalid-feedback" role="alert">
-                                                <strong>{{ $message }}</strong>
-                                            </span>
-                                        @enderror
-                                    </div>
+                                    @if(isset($permisos) && $permisos['es_jefe'])
+                                        {{-- Jefe solo ve su sede (no puede cambiar) --}}
+                                        <div class="form-group">
+                                            <label for="sede_fixed">Sede</label>
+                                            <input type="text" class="form-control" value="{{ $usuario['sede']['nombresede'] ?? 'Sede Asignada' }}" readonly>
+                                            <input type="hidden" name="sede_id" value="{{ $permisos['sede_id'] }}">
+                                            <small class="text-muted"><i class="fas fa-lock me-1"></i>Solo puede exportar datos de su sede asignada</small>
+                                        </div>
+                                    @else
+                                        {{-- Admin puede seleccionar sede --}}
+                                        <div class="form-group">
+                                            <label for="sede_id">Sede</label>
+                                            <select class="form-control @error('sede_id') is-invalid @enderror" id="sede_id" name="sede_id">
+                                                <option value="">Todas las sedes</option>
+                                                @foreach ($sedes as $sede)
+                                                    <option value="{{ $sede['id'] }}" {{ old('sede_id') == $sede['id'] ? 'selected' : '' }}>
+                                                        {{ $sede['nombresede'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            @error('sede_id')
+                                                <span class="invalid-feedback" role="alert">
+                                                    <strong>{{ $message }}</strong>
+                                                </span>
+                                            @enderror
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">

@@ -16,11 +16,11 @@ class ApiService
         $this->token = session('token');
     }
 
-    public function get($endpoint, $params = [])
+    public function get($endpoint, $params = [], $timeout = 30)
     {
         try {
             return Http::withToken($this->token)
-                ->timeout(30)
+                ->timeout($timeout)
                 ->get($this->baseUrl . '/' . $endpoint, $params);
         } catch (\Exception $e) {
             Log::error("Error en GET {$endpoint}: " . $e->getMessage());

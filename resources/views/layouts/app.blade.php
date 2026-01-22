@@ -460,6 +460,71 @@
                                 <span>Visitas Domiciliarias</span>
                             </a>
                         </li>
+                    @elseif(in_array($rol, ['jefe', 'coordinador']))
+                        <!-- MENÚ PARA JEFES/COORDINADORES - DASHBOARD Y LABORATORIO DE SU SEDE -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('visitas.*') ? 'active' : '' }}" href="{{ route('visitas.buscar') }}">
+                                <i class="fas fa-home"></i>
+                                <span>Visitas Domiciliarias</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('laboratorio.*') ? 'active' : '' }}" href="{{ route('laboratorio.index') }}">
+                                <i class="fas fa-vial"></i>
+                                <span>Envío de Muestras</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link submenu-toggle {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') || request()->routeIs('brigadas.export') || request()->routeIs('encuestas.export') || request()->routeIs('findrisk.export') || request()->routeIs('afinamientos.export') || request()->routeIs('tamizajes.export') ? 'active' : '' }}" href="#" onclick="toggleSubmenu(event, this)">
+                                <i class="fas fa-chart-bar"></i>
+                                <span>Reportes</span>
+                                <i class="fas fa-chevron-down ms-auto submenu-icon"></i>
+                            </a>
+                            <ul class="submenu collapse {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') || request()->routeIs('brigadas.export') || request()->routeIs('encuestas.export') || request()->routeIs('findrisk.export') || request()->routeIs('afinamientos.export') || request()->routeIs('tamizajes.export') ? 'show' : '' }}">
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('visitas.export') ? 'active' : '' }}" href="{{ route('visitas.export') }}">
+                                        <i class="fas fa-file-excel"></i>
+                                        <span>Exportar Visitas</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('brigadas.export') ? 'active' : '' }}" href="{{ route('brigadas.export') }}">
+                                        <i class="fas fa-file-medical"></i>
+                                        <span>Exportar Brigadas</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('encuestas.export') ? 'active' : '' }}" href="{{ route('encuestas.export') }}">
+                                        <i class="fas fa-file-excel"></i>
+                                        <span>Exportar Encuestas</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('findrisk.export') ? 'active' : '' }}" href="{{ route('findrisk.export') }}">
+                                        <i class="fas fa-file-export me-1"></i>
+                                        <span>Exportar Tests</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('afinamientos.export') ? 'active' : '' }}" href="{{ route('afinamientos.export') }}">
+                                        <i class="fas fa-heartbeat"></i>
+                                        <span>Exportar Afinamientos</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="submenu-link {{ request()->routeIs('tamizajes.export') ? 'active' : '' }}" href="{{ route('tamizajes.export') }}">
+                                        <i class="fas fa-heartbeat"></i>
+                                        <span>Exportar Tamizajes</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                     @else
                         <!-- MENÚ POR DEFECTO PARA OTROS ROLES -->
                         <li class="nav-item">

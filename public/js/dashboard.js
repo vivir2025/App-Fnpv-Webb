@@ -30,11 +30,25 @@ let fechaFin = null;
  * Cargar datos según la sede y rango de fechas seleccionados
  */
 function cargarDatosPorSede(sedeId, aplicarFiltroFecha = false) {
+    // Validar permisos antes de cargar
+    if (window.permisos && window.permisos.esJefe) {
+        // Si es jefe, solo puede ver su sede
+        if (sedeId !== window.permisos.sedeId && sedeId !== 'todas') {
+            mostrarError('No tiene permisos para ver esta sede');
+            return;
+        }
+        sedeId = window.permisos.sedeId;
+    }
+    
     sedeActual = sedeId;
     
     // Actualizar botones activos
     document.querySelectorAll('.sede-btn').forEach(btn => {
         btn.classList.remove('active');
+        // Si es jefe, mantener deshabilitados los otros botones
+        if (window.permisos && window.permisos.esJefe && btn.getAttribute('data-sede-id') !== window.permisos.sedeId) {
+            btn.disabled = true;
+        }
     });
     
     const botonActivo = document.querySelector(`[data-sede-id="${sedeId}"]`);
@@ -889,32 +903,44 @@ function actualizarGraficos(datosDiarios, datosSedes) {
  */
 
 /**
- * Mostrar indicador de carga
+ * Mostrar indicador de carga (Skeleton Loader)
  */
 function mostrarIndicadorCarga() {
-    const indicadorExistente = document.getElementById('loading-indicator');
-    if (indicadorExistente) {
-        indicadorExistente.remove();
+    const skeletonLoader = document.getElementById('skeleton-loader');
+    const dashboardContent = document.getElementById('dashboard-content');
+    
+    if (skeletonLoader) {
+        skeletonLoader.style.display = 'block';
     }
-    
-    const loadingIndicator = document.createElement('div');
-    loadingIndicator.className = 'alert alert-info text-center loading-indicator';
-    loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Cargando datos...';
-    loadingIndicator.id = 'loading-indicator';
-    
-    const contenidoPrincipal = document.querySelector('.row.mb-4 .card-body');
-    if (contenidoPrincipal) {
-        contenidoPrincipal.appendChild(loadingIndicator);
+    if (dashboardContent) {
+        dashboardContent.style.display = 'none';
     }
 }
 
 /**
- * Ocultar indicador de carga
+ * Ocultar indicador de carga (Skeleton Loader)
  */
 function ocultarIndicadorCarga() {
-    const indicator = document.getElementById('loading-indicator');
-    if (indicator) {
-        indicator.remove();
+    const skeletonLoader = document.getElementById('skeleton-loader');
+    const dashboardContent = document.getElementById('dashboard-content');
+    
+    if (skeletonLoader && dashboardContent) {
+        // Primero mostrar el contenido real
+        dashboardContent.style.display = 'block';
+        dashboardContent.style.opacity = '0';
+        
+        // Animar la transición
+        requestAnimationFrame(() => {
+            skeletonLoader.style.opacity = '0';
+            dashboardContent.style.transition = 'opacity 0.3s ease-in';
+            dashboardContent.style.opacity = '1';
+            
+            // Ocultar skeleton después de la transición
+            setTimeout(() => {
+                skeletonLoader.style.display = 'none';
+                skeletonLoader.style.opacity = '1';
+            }, 300);
+        });
     }
 }
 
@@ -1401,10 +1427,18 @@ function ocultarLoadingTerritorio() {
  * ============================================
  */
 
-// Agregar al DOMContentLoaded existente
 document.addEventListener('DOMContentLoaded', function() {
-    // ... tu código existente ...
-    
     // Inicializar buscador de territorio
     inicializarBuscadorTerritorio();
+    
+    // Determinar sede inicial según permisos
+    let sedeInicial = 'todas';
+    if (window.permisos && window.permisos.esJefe) {
+        // Si es jefe, cargar automáticamente su sede
+        sedeInicial = window.permisos.sedeId;
+    }
+    
+    // Mostrar skeleton loader y cargar datos inmediatamente
+    mostrarIndicadorCarga();
+    cargarDatosPorSede(sedeInicial);
 });

@@ -20,21 +20,38 @@ class EnvioMuestraWebController extends Controller
 
     public function index()
     {
+        // Obtener información del usuario
+        $usuario = session('usuario');
+        $rol = strtolower($usuario['rol'] ?? '');
+        $sedeUsuario = $usuario['idsede'] ?? null;
+        
         try {
-            // Obtener todas las sedes para el selector
+            // Obtener todas las sedes
             $response = $this->apiService->get('sedes');
             
-            // Verificar si la respuesta fue exitosa y extraer los datos
             if ($response->successful()) {
-                $sedes = $response->json();
+                $todasLasSedes = $response->json();
             } else {
                 Log::error('Error al obtener sedes: ' . $response->status());
-                $sedes = [];
+                $todasLasSedes = [];
             }
             
-            // Verificar que sedes sea un array
-            if (!is_array($sedes)) {
+            if (!is_array($todasLasSedes)) {
                 Log::error('La respuesta de sedes no es un array');
+                $todasLasSedes = [];
+            }
+            
+            // Filtrar sedes según el rol
+            if (in_array($rol, ['admin', 'administrador'])) {
+                // Administrador ve todas las sedes
+                $sedes = $todasLasSedes;
+            } elseif (in_array($rol, ['jefe', 'coordinador'])) {
+                // Jefe solo ve su sede
+                $sedes = array_filter($todasLasSedes, function($sede) use ($sedeUsuario) {
+                    return ($sede['id'] ?? null) === $sedeUsuario;
+                });
+            } else {
+                // Otros roles no tienen acceso
                 $sedes = [];
             }
             
@@ -43,28 +60,53 @@ class EnvioMuestraWebController extends Controller
             $sedes = [];
         }
         
-        return view('laboratorio.index', compact('sedes'));
+        // Pasar permisos a la vista
+        $permisos = [
+            'puede_ver_todas_sedes' => in_array($rol, ['admin', 'administrador']),
+            'es_jefe' => in_array($rol, ['jefe', 'coordinador']),
+            'sede_id' => $sedeUsuario
+        ];
+        
+        return view('laboratorio.index', compact('sedes', 'permisos', 'usuario'));
     }
 
     public function listarPorSede(Request $request, $sedeId = null)
     {
-        if ($sedeId) {
-            try {
-                // Obtener envíos de la sede
-                $responseEnvios = $this->apiService->get("envio-muestras/sede/{$sedeId}");
-                $envios = $responseEnvios->successful() ? $responseEnvios->json() : [];
-                
-                // Obtener información de la sede
-                $responseSede = $this->apiService->get("sedes/{$sedeId}");
-                $sede = $responseSede->successful() ? $responseSede->json() : null;
-                
-                return view('laboratorio.lista', compact('envios', 'sede'));
-            } catch (\Exception $e) {
-                Log::error('Error al listar por sede: ' . $e->getMessage());
-                return redirect()->route('laboratorio.index')->with('error', 'Error al cargar los datos');
-            }
-        } else {
+        if (!$sedeId) {
             return redirect()->route('laboratorio.index');
+        }
+        
+        // Validar permisos del usuario
+        $usuario = session('usuario');
+        $rol = strtolower($usuario['rol'] ?? '');
+        $sedeUsuario = $usuario['idsede'] ?? null;
+        
+        // Aplicar restricciones según el rol
+        if (in_array($rol, ['jefe', 'coordinador'])) {
+            // Jefe solo puede ver su sede
+            if ($sedeId !== $sedeUsuario) {
+                return redirect()->route('laboratorio.index')
+                    ->with('error', 'No tiene permisos para ver esta sede');
+            }
+        } elseif (!in_array($rol, ['admin', 'administrador'])) {
+            // Otros roles no tienen acceso
+            return redirect()->route('laboratorio.index')
+                ->with('error', 'No tiene permisos para acceder');
+        }
+        
+        try {
+            // Obtener envíos de la sede
+            $responseEnvios = $this->apiService->get("envio-muestras/sede/{$sedeId}");
+            $envios = $responseEnvios->successful() ? $responseEnvios->json() : [];
+            
+            // Obtener información de la sede
+            $responseSede = $this->apiService->get("sedes/{$sedeId}");
+            $sede = $responseSede->successful() ? $responseSede->json() : null;
+            
+            return view('laboratorio.lista', compact('envios', 'sede'));
+        } catch (\Exception $e) {
+            Log::error('Error al listar por sede: ' . $e->getMessage());
+            return redirect()->route('laboratorio.index')->with('error', 'Error al cargar los datos');
         }
     }
 

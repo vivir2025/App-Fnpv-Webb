@@ -286,23 +286,47 @@
                             </ul>
                         </div>
                         @endif
+                        
+                        @if (session('warning'))
+                        <div class="alert alert-warning modern-alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            {{ session('warning') }}
+                        </div>
+                        @endif
+                        
+                        @if (session('success'))
+                        <div class="alert alert-success modern-alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {{ session('success') }}
+                        </div>
+                        @endif
 
-                        <!-- ✅ Filtro por sede -->
+                        <!-- ✅ Filtro por sede con permisos -->
                         <div class="row mb-3">
                             <div class="col-12">
-                                <div class="form-group">
-                                    <div class="form-floating">
-                                        <select name="sede_id" id="sede_id" class="form-control">
-                                            <option value="todas">Todas las sedes</option>
-                                            @foreach($sedes as $sede)
-                                                <option value="{{ $sede['id'] ?? $sede['idsede'] }}">
-                                                    {{ $sede['nombresede'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <label for="sede_id"><i class="fas fa-building me-2"></i>Sede</label>
+                                @if(isset($permisos) && $permisos['es_jefe'])
+                                    {{-- Jefe solo ve su sede (no puede cambiar) --}}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Exportando datos de: <strong>{{ $usuario['sede']['nombresede'] ?? 'Sede Asignada' }}</strong>
                                     </div>
-                                </div>
+                                    <input type="hidden" name="sede_id" value="{{ $permisos['sede_id'] }}">
+                                @else
+                                    {{-- Admin puede seleccionar sede --}}
+                                    <div class="form-group">
+                                        <div class="form-floating">
+                                            <select name="sede_id" id="sede_id" class="form-control">
+                                                <option value="todas">Todas las sedes</option>
+                                                @foreach($sedes as $sede)
+                                                    <option value="{{ $sede['id'] ?? $sede['idsede'] }}">
+                                                        {{ $sede['nombresede'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <label for="sede_id"><i class="fas fa-building me-2"></i>Sede</label>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 
@@ -349,26 +373,33 @@
 
 @section('scripts')
 <script>
-    // Establecer fecha actual como valor predeterminado para fecha final
     document.addEventListener('DOMContentLoaded', function() {
-        const today = new Date();
-        const formattedDate = today.toISOString().substr(0, 10);
-        document.getElementById('fecha_fin').value = formattedDate;
-        
-        // Establecer fecha hace un mes como valor predeterminado para fecha inicial
-        const lastMonth = new Date();
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        document.getElementById('fecha_inicio').value = lastMonth.toISOString().substr(0, 10);
-
-        // Manejar envío del formulario
+        // Verificar que los elementos existan
+        const fechaFinInput = document.getElementById('fecha_fin');
+        const fechaInicioInput = document.getElementById('fecha_inicio');
         const form = document.getElementById('exportForm');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const generateBtn = document.getElementById('generateBtn');
+        
+        if (!fechaFinInput || !fechaInicioInput || !form || !loadingOverlay || !generateBtn) {
+            console.error('No se encontraron los elementos necesarios del formulario');
+            return;
+        }
+        
+        // Establecer fechas por defecto
+        const today = new Date();
+        const formattedDate = today.toISOString().substr(0, 10);
+        fechaFinInput.value = formattedDate;
+        
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        fechaInicioInput.value = lastMonth.toISOString().substr(0, 10);
+
+        let checkDownloadInterval = null;
 
         form.addEventListener('submit', function(e) {
-            // Validar fechas antes de enviar
-            const fechaInicio = new Date(document.getElementById('fecha_inicio').value);
-            const fechaFin = new Date(document.getElementById('fecha_fin').value);
+            const fechaInicio = new Date(fechaInicioInput.value);
+            const fechaFin = new Date(fechaFinInput.value);
             
             if (fechaInicio > fechaFin) {
                 e.preventDefault();
@@ -376,15 +407,33 @@
                 return;
             }
 
-            // Mostrar loading
+            // Mostrar overlay de carga
             showLoading();
             
-            // El formulario se enviará normalmente al servidor
-            // El loading se ocultará cuando la página se recargue o cuando detectemos la descarga
+            let checkCount = 0;
+            const maxChecks = 20; // 10 segundos (20 * 500ms)
             
-            // Para detectar cuando termine la descarga, usamos un método con cookie
-            setCookie('download_started', '1', 1);
-            checkDownloadComplete();
+            // Iniciar polling para detectar cuando comience la descarga
+            checkDownloadInterval = setInterval(function() {
+                checkCount++;
+                
+                // Verificar si existe la cookie
+                const cookieValue = getCookie('download_started');
+                console.log('Checking cookie, attempt:', checkCount, 'value:', cookieValue);
+                
+                if (cookieValue === '1') {
+                    console.log('Download cookie detected, hiding overlay');
+                    clearInterval(checkDownloadInterval);
+                    deleteCookie('download_started');
+                    // Pequeño delay para asegurar que la descarga comenzó
+                    setTimeout(hideLoading, 500);
+                } else if (checkCount >= maxChecks) {
+                    // Timeout alcanzado - asumir que la descarga ya comenzó
+                    console.log('Timeout reached, hiding overlay');
+                    clearInterval(checkDownloadInterval);
+                    hideLoading();
+                }
+            }, 500);
         });
 
         function showLoading() {
@@ -395,51 +444,13 @@
         function hideLoading() {
             loadingOverlay.style.display = 'none';
             generateBtn.disabled = false;
-            
-            // Animación de éxito
             generateBtn.classList.add('success-animation');
             setTimeout(() => {
                 generateBtn.classList.remove('success-animation');
             }, 600);
         }
-  // ✅ Efectos de hover para select también
-        const selects = document.querySelectorAll('.form-floating select');
-        selects.forEach(select => {
-            select.addEventListener('focus', function() {
-                this.closest('.form-floating').style.transform = 'translateY(-2px)';
-            });
-            
-            select.addEventListener('blur', function() {
-                this.closest('.form-floating').style.transform = 'translateY(0)';
-            });
-        });
-    });
-        // Función para detectar cuando termine la descarga
-        function checkDownloadComplete() {
-            const checkInterval = setInterval(function() {
-                if (getCookie('download_complete') === '1') {
-                    clearInterval(checkInterval);
-                    deleteCookie('download_complete');
-                    deleteCookie('download_started');
-                    hideLoading();
-                }
-            }, 1000);
-
-            // Timeout de seguridad (30 segundos)
-            setTimeout(function() {
-                clearInterval(checkInterval);
-                hideLoading();
-            }, 30000);
-        }
-
-        // Funciones auxiliares para manejar cookies
-        function setCookie(name, value, seconds) {
-            const d = new Date();
-            d.setTime(d.getTime() + (seconds * 1000));
-            const expires = "expires=" + d.toUTCString();
-            document.cookie = name + "=" + value + ";" + expires + ";path=/";
-        }
-
+        
+        // Funciones para manejar cookies
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -452,18 +463,42 @@
         }
 
         function deleteCookie(name) {
-            document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = name + "=; Max-Age=0; path=/;";
         }
 
         // Efectos de hover para inputs
         const inputs = document.querySelectorAll('.form-floating input');
         inputs.forEach(input => {
             input.addEventListener('focus', function() {
-                this.closest('.form-floating').style.transform = 'translateY(-2px)';
+                const floating = this.closest('.form-floating');
+                if (floating) {
+                    floating.style.transform = 'translateY(-2px)';
+                }
             });
             
             input.addEventListener('blur', function() {
-                this.closest('.form-floating').style.transform = 'translateY(0)';
+                const floating = this.closest('.form-floating');
+                if (floating) {
+                    floating.style.transform = 'translateY(0)';
+                }
+            });
+        });
+
+        // Efectos de hover para selects
+        const selects = document.querySelectorAll('.form-floating select');
+        selects.forEach(select => {
+            select.addEventListener('focus', function() {
+                const floating = this.closest('.form-floating');
+                if (floating) {
+                    floating.style.transform = 'translateY(-2px)';
+                }
+            });
+            
+            select.addEventListener('blur', function() {
+                const floating = this.closest('.form-floating');
+                if (floating) {
+                    floating.style.transform = 'translateY(0)';
+                }
             });
         });
     });

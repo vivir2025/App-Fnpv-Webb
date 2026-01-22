@@ -43,21 +43,44 @@ class EncuestaExportController extends Controller
     public function exportForm()
     {
         try {
+            // Obtener información del usuario
+            $usuario = session('usuario');
+            $rol = strtolower($usuario['rol'] ?? '');
+            $sedeUsuario = $usuario['idsede'] ?? null;
+            
             // Obtener sedes para el filtro
             $sedesResponse = $this->apiService->get('sedes');
-        $sedes = [];
+            $todasLasSedes = [];
         
             if ($sedesResponse->successful()) {
-                $sedes = $sedesResponse->json();
-                Log::info('Sedes obtenidas para filtro de encuestas: ' . count($sedes));
+                $todasLasSedes = $sedesResponse->json();
+                // Log::info('Sedes obtenidas para filtro de encuestas: ' . count($todasLasSedes));
             } else {
-                Log::warning('No se pudieron obtener las sedes para el filtro de encuestas');
+                // Log::warning('No se pudieron obtener las sedes para el filtro de encuestas');
             }
             
-            return view('encuestas.export', compact('sedes'));
+            // Filtrar sedes según el rol
+            if (in_array($rol, ['admin', 'administrador'])) {
+                $sedes = $todasLasSedes;
+            } elseif (in_array($rol, ['jefe', 'coordinador'])) {
+                $sedes = array_filter($todasLasSedes, function($sede) use ($sedeUsuario) {
+                    return ($sede['id'] ?? null) === $sedeUsuario;
+                });
+            } else {
+                $sedes = [];
+            }
+            
+            // Permisos para la vista
+            $permisos = [
+                'puede_ver_todas_sedes' => in_array($rol, ['admin', 'administrador']),
+                'es_jefe' => in_array($rol, ['jefe', 'coordinador']),
+                'sede_id' => $sedeUsuario
+            ];
+            
+            return view('encuestas.export', compact('sedes', 'permisos', 'usuario'));
         } catch (\Exception $e) {
-            Log::error('Error al obtener sedes para encuestas: ' . $e->getMessage());
-            return view('encuestas.export', ['sedes' => []]);
+            // Log::error('Error al obtener sedes para encuestas: ' . $e->getMessage());
+            return view('encuestas.export', ['sedes' => [], 'permisos' => [], 'usuario' => []]);
         }
     }
         
@@ -76,16 +99,30 @@ class EncuestaExportController extends Controller
         ]);
         
         try {
+            // Validar permisos del usuario
+            $usuario = session('usuario');
+            $rol = strtolower($usuario['rol'] ?? '');
+            $sedeUsuario = $usuario['idsede'] ?? null;
+            
             // Obtener filtros del request
             $fechaInicio = $request->input('fecha_inicio');
             $fechaFin = $request->input('fecha_fin');
             $sedeId = $request->input('sede_id');
             
+            // Aplicar restricciones según el rol
+            if (in_array($rol, ['jefe', 'coordinador'])) {
+                // Jefe solo puede exportar su sede
+                $sedeId = $sedeUsuario;
+            } elseif (!in_array($rol, ['admin', 'administrador'])) {
+                return back()->withErrors(['error' => 'No tiene permisos para exportar datos']);
+            }
+            
             // Registrar en log para depuración
             Log::info('Exportando encuestas con filtros:', [
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
-                'sede_id' => $sedeId
+                'sede_id' => $sedeId,
+                'rol' => $rol
             ]);
             
             // Preparar parámetros para la API
@@ -97,16 +134,42 @@ class EncuestaExportController extends Controller
             // Añadir el filtro de sede si se seleccionó una
             if (!empty($sedeId)) {
                 $params['sede_id'] = $sedeId;
-    }
+            }
             
             // Consumir la API para obtener las encuestas usando el ApiService
-            $response = $this->apiService->get('encuestas', $params);
+            $response = $this->apiService->get('encuestas', $params, 60);
                 
             if (!$response->successful()) {
                 return back()->withErrors(['api_error' => 'Error al obtener datos de la API']);
-}
+            }
             
-            $encuestas = $response->json()['data'] ?? [];
+            $todasEncuestas = $response->json()['data'] ?? [];
+            
+            // Filtrar manualmente por sede si es necesario (en caso de que la API no filtre)
+            if (!empty($sedeId) && $sedeId !== 'todas') {
+                $encuestas = array_filter($todasEncuestas, function($encuesta) use ($sedeId) {
+                    // Verificar diferentes estructuras posibles para la sede
+                    if (isset($encuesta['sede']['id'])) {
+                        return $encuesta['sede']['id'] == $sedeId;
+                    } elseif (isset($encuesta['sede']['idsede'])) {
+                        return $encuesta['sede']['idsede'] == $sedeId;
+                    } elseif (isset($encuesta['sede_id'])) {
+                        return $encuesta['sede_id'] == $sedeId;
+                    } elseif (isset($encuesta['idsede'])) {
+                        return $encuesta['idsede'] == $sedeId;
+                    }
+                    return false;
+                });
+                $encuestas = array_values($encuestas); // Reindexar
+            } else {
+                $encuestas = $todasEncuestas;
+            }
+            
+            // Log::info('Encuestas después de filtrar:', [
+            //     'total_api' => $totalEncuestas,
+            //     'total_filtrado' => count($encuestas),
+            //     'sede_filtro' => $sedeId
+            // ]);
             
             if (empty($encuestas)) {
                 return back()->with('warning', 'No se encontraron encuestas para los filtros seleccionados.');
@@ -251,8 +314,8 @@ class EncuestaExportController extends Controller
             $writer->save('php://output');
             exit;
         } catch (\Exception $e) {
-            Log::error('Error al exportar encuestas: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
+            // Log::error('Error al exportar encuestas: ' . $e->getMessage());
+            // Log::error('Stack trace: ' . $e->getTraceAsString());
             return back()->withErrors(['error' => 'Error al generar el archivo Excel: ' . $e->getMessage()]);
         }
     }

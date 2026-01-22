@@ -15,6 +15,8 @@ use App\Http\Controllers\LogViewController;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Middleware\ApiAuthentication;
 use App\Http\Middleware\AdminOnly;
+use App\Http\Middleware\DashboardAccess;
+use App\Http\Middleware\LaboratorioAccess;
 
 // Ruta raíz
 Route::get('/', function () {
@@ -33,16 +35,21 @@ Route::middleware('guest')->group(function () {
 // Rutas protegidas con autenticación
 Route::middleware(ApiAuthentication::class)->group(function () {
 
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard - solo para admin y jefes
+    Route::middleware(DashboardAccess::class)->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        
+        Route::prefix('api')->name('api.')->group(function () {
+            Route::get('/dashboard/datos', [DashboardController::class, 'getDatos'])->name('dashboard.datos');
+        });
+    });
     
-    // API Routes
+    // API Routes generales
     Route::prefix('api')->name('api.')->group(function () {
-        Route::get('/dashboard/datos', [DashboardController::class, 'getDatos'])->name('dashboard.datos');
         Route::get('/sedes', [ApiController::class, 'getSedes'])->name('sedes');
     });
     
-    // Rutas para visitas
+    // Rutas para visitas - accesible para todos los usuarios autenticados
     Route::prefix('visitas')->name('visitas.')->group(function () {
         Route::get('/buscar', [VisitaController::class, 'buscarForm'])->name('buscar');
         Route::post('/buscar', [VisitaController::class, 'buscar'])->name('buscar.submit');
@@ -54,19 +61,22 @@ Route::middleware(ApiAuthentication::class)->group(function () {
         Route::post('/export/excel', [VisitaController::class, 'exportExcel'])->name('export.excel');
     });
     
-    Route::prefix('laboratorio')->name('laboratorio.')->group(function () {
-        Route::get('/', [EnvioMuestraWebController::class, 'index'])->name('index');
-        Route::get('/sede/{sedeId}', [EnvioMuestraWebController::class, 'listarPorSede'])->name('sede');
-        Route::get('/ver/{id}', [EnvioMuestraWebController::class, 'ver'])->name('ver');
-        Route::get('/crear', [EnvioMuestraWebController::class, 'crear'])->name('crear');
-        Route::post('/guardar', [EnvioMuestraWebController::class, 'guardar'])->name('guardar');
-        Route::get('/editar/{id}', [EnvioMuestraWebController::class, 'editar'])->name('editar');
-        Route::put('/actualizar/{id}', [EnvioMuestraWebController::class, 'actualizar'])->name('actualizar');
-        Route::delete('/eliminar/{id}', [EnvioMuestraWebController::class, 'eliminar'])->name('eliminar');
-        Route::post('/buscar-paciente', [EnvioMuestraWebController::class, 'buscarPaciente'])->name('buscar-paciente');
-        Route::get('/detalle-pdf/{id}', [EnvioMuestraWebController::class, 'generarPdf'])->name('detallePdf');
-        Route::get('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
-        Route::post('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
+    // Rutas de laboratorio - solo para admin y jefes
+    Route::middleware(LaboratorioAccess::class)->group(function () {
+        Route::prefix('laboratorio')->name('laboratorio.')->group(function () {
+            Route::get('/', [EnvioMuestraWebController::class, 'index'])->name('index');
+            Route::get('/sede/{sedeId}', [EnvioMuestraWebController::class, 'listarPorSede'])->name('sede');
+            Route::get('/ver/{id}', [EnvioMuestraWebController::class, 'ver'])->name('ver');
+            Route::get('/crear', [EnvioMuestraWebController::class, 'crear'])->name('crear');
+            Route::post('/guardar', [EnvioMuestraWebController::class, 'guardar'])->name('guardar');
+            Route::get('/editar/{id}', [EnvioMuestraWebController::class, 'editar'])->name('editar');
+            Route::put('/actualizar/{id}', [EnvioMuestraWebController::class, 'actualizar'])->name('actualizar');
+            Route::delete('/eliminar/{id}', [EnvioMuestraWebController::class, 'eliminar'])->name('eliminar');
+            Route::post('/buscar-paciente', [EnvioMuestraWebController::class, 'buscarPaciente'])->name('buscar-paciente');
+            Route::get('/detalle-pdf/{id}', [EnvioMuestraWebController::class, 'generarPdf'])->name('detallePdf');
+            Route::get('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail');
+            Route::post('/enviar-email/{id}', [EnvioMuestraWebController::class, 'enviarPorEmail'])->name('enviarEmail.post');
+        });
     });
 
     // Rutas para exportación de brigadas

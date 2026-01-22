@@ -270,6 +270,20 @@
                             </ul>
                         </div>
                         @endif
+                        
+                        @if (session('warning'))
+                        <div class="alert alert-warning modern-alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            {{ session('warning') }}
+                        </div>
+                        @endif
+                        
+                        @if (session('success'))
+                        <div class="alert alert-success modern-alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            {{ session('success') }}
+                        </div>
+                        @endif
 
                         @if (session('warning'))
                         <div class="alert alert-warning modern-alert">
@@ -298,17 +312,27 @@
 
                         <div class="row mb-4">
                             <div class="col-md-12">
-                                <div class="form-group">
-                                    <div class="form-floating">
-                                        <select name="sede_id" id="sede_id" class="form-control">
-                                            <option value="">Todas las sedes</option>
-                                            @foreach($sedes ?? [] as $sede)
-                                                <option value="{{ $sede['id'] }}">{{ $sede['nombresede'] }}</option>
-                                            @endforeach
-                                        </select>
-                                        <label for="sede_id"><i class="fas fa-hospital-alt me-2"></i>Filtrar por Sede</label>
+                                @if(isset($permisos) && $permisos['es_jefe'])
+                                    {{-- Jefe solo ve su sede (no puede cambiar) --}}
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Exportando datos de: <strong>{{ $usuario['sede']['nombresede'] ?? 'Sede Asignada' }}</strong>
                                     </div>
-                                </div>
+                                    <input type="hidden" name="sede_id" value="{{ $permisos['sede_id'] }}">
+                                @else
+                                    {{-- Admin puede seleccionar sede --}}
+                                    <div class="form-group">
+                                        <div class="form-floating">
+                                            <select name="sede_id" id="sede_id" class="form-control">
+                                                <option value="">Todas las sedes</option>
+                                                @foreach($sedes ?? [] as $sede)
+                                                    <option value="{{ $sede['id'] }}">{{ $sede['nombresede'] }}</option>
+                                                @endforeach
+                                            </select>
+                                            <label for="sede_id"><i class="fas fa-hospital-alt me-2"></i>Filtrar por Sede</label>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
 

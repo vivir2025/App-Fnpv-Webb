@@ -221,6 +221,24 @@
             gap: 15px;
         }
     }
+
+    /* ========================================
+    ANIMACIONES PARA CONTENIDO
+    ======================================== */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    #dashboard-content {
+        animation: fadeIn 0.5s ease-in;
+    }
     </style>
 @endsection
 
@@ -244,27 +262,30 @@
         </div>
     </div>
 
-    <div class="row">
-        <!-- Mapa de Calor -->
-        @include('dashboard.partials.mapa-calor')
+    <!-- Skeleton Loader -->
+    @include('dashboard.partials.skeleton-loader')
+
+    <!-- Contenedor de contenido real -->
+    <div id="dashboard-content" style="display: none; opacity: 0;">
+        <div class="row">
+            <!-- Mapa de Calor -->
+            @include('dashboard.partials.mapa-calor')
+            
+            <!-- Estadísticas Generales -->
+            @include('dashboard.partials.estadisticas')
+        </div>
+
+        <!-- Acordeón de Auxiliares (dinámico según filtros) -->
+        <div class="accordion accordion-auxiliares" id="acordeon-auxiliares">
+            <!-- Se llenará dinámicamente con JavaScript -->
+        </div>
+
+        <!-- Tabla Completa de Auxiliares -->
+        @include('dashboard.partials.tabla-auxiliares')
         
-        <!-- Estadísticas Generales -->
-        @include('dashboard.partials.estadisticas')
+        <!-- Gráficos -->
+        @include('dashboard.partials.graficos')
     </div>
-
-    <!-- Acordeón de Auxiliares (dinámico según filtros) -->
-    <div class="accordion accordion-auxiliares" id="acordeon-auxiliares">
-        <!-- Se llenará dinámicamente con JavaScript -->
-    </div>
-
-    <!-- Acordeón de Auxiliares -->
-    <div class="accordion accordion-auxiliares" id="acordeon-auxiliares">
-        <!-- Se llenará dinámicamente con JavaScript -->
-    </div>
-    <!-- Tabla Completa de Auxiliares -->
-    @include('dashboard.partials.tabla-auxiliares')
-    <!-- Gráficos -->
-    @include('dashboard.partials.graficos')
 
     <!-- Modal Mapa Completo -->
     @include('dashboard.partials.modal-mapa')
@@ -279,6 +300,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
     window.apiToken = '{{ $token }}';
+    window.permisos = {
+        puedeVerTodasSedes: {{ $permisos['puede_ver_todas_sedes'] ? 'true' : 'false' }},
+        esJefe: {{ $permisos['es_jefe'] ? 'true' : 'false' }},
+        sedeId: '{{ $permisos['sede_id'] ?? 'todas' }}'
+    };
 </script>
 <script src="{{ asset('js/dashboard.js') }}"></script>
 @endsection
