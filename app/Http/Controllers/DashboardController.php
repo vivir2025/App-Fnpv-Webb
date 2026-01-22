@@ -337,36 +337,31 @@ class DashboardController extends Controller
         return $resultado;
     }
 
-    // Optimizar prepararDatosAuxiliares con caché
+    // Optimizar prepararDatosAuxiliares
     private function prepararDatosAuxiliares($visitas, $sedeIdFiltro)
     {
         try {
-            // 1. Obtener sedes con caché
-            $mapaSedes = cache()->remember('sedes_map', 3600, function () {
-                $mapaSedes = [];
-                $responseSedes = $this->apiService->get('sedes');
-                if ($responseSedes->successful() && is_array($responseSedes->json())) {
-                    foreach ($responseSedes->json() as $sede) {
-                        if (isset($sede['id'])) {
-                            $mapaSedes[$sede['id']] = $sede['nombresede'] ?? "Sede {$sede['id']}";
-                        }
+            // 1. Obtener sedes
+            $mapaSedes = [];
+            $responseSedes = $this->apiService->get('sedes');
+            if ($responseSedes->successful() && is_array($responseSedes->json())) {
+                foreach ($responseSedes->json() as $sede) {
+                    if (isset($sede['id'])) {
+                        $mapaSedes[$sede['id']] = $sede['nombresede'] ?? "Sede {$sede['id']}";
                     }
                 }
-                return $mapaSedes;
-            });
+            }
 
-            // 2. Obtener auxiliares con caché de 10 minutos
-            $todosLosAuxiliares = cache()->remember('auxiliares_list', 600, function () {
-                $responseAuxiliares = $this->apiService->get('usuarios');
-                if (!$responseAuxiliares->successful() || !is_array($responseAuxiliares->json())) {
-                    return [];
-                }
-                
-                return collect($responseAuxiliares->json())->filter(function($usuario) {
-                    $rol = strtolower($usuario['rol'] ?? '');
-                    return in_array($rol, ['aux', 'auxiliar']);
-                })->all();
-            });
+            // 2. Obtener auxiliares
+            $responseAuxiliares = $this->apiService->get('usuarios');
+            if (!$responseAuxiliares->successful() || !is_array($responseAuxiliares->json())) {
+                return [];
+            }
+            
+            $todosLosAuxiliares = collect($responseAuxiliares->json())->filter(function($usuario) {
+                $rol = strtolower($usuario['rol'] ?? '');
+                return in_array($rol, ['aux', 'auxiliar']);
+            })->all();
 
             if (empty($todosLosAuxiliares)) {
                 return [];
