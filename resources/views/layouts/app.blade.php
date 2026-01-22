@@ -376,7 +376,7 @@
                     <img src="https://nacerparavivir.org/wp-content/uploads/2023/12/Logo_Section1home-8.png" alt="Logo">
                 </div>
                 <div class="mt-2">
-                    <small class="text-white-50">Sistema App-Fnpv Web</small>
+                    <small class="text-white-50">Sistema Bornive Web</small>
                 </div>
             </div>
             
