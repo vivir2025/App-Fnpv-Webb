@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\ApiService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use App\Mail\EnvioMuestras;
 use Illuminate\Support\Facades\Log;
 
@@ -190,7 +191,7 @@ class EnvioMuestraWebController extends Controller
 
         try {
             $data = $request->all();
-            $data['usuario_creador_id'] = session('user_id');
+            $data['usuario_creador_id'] = session('usuario.id');
 
             $response = $this->apiService->post('envio-muestras', $data);
             
@@ -364,7 +365,7 @@ class EnvioMuestraWebController extends Controller
             if (!$envio) {
                 return redirect()->route('laboratorio.index')->with('error', 'Envío no encontrado');
             }
-            
+
             // Obtener el correo del usuario creador del laboratorio
             $correoUsuarioCreador = null;
             if (!empty($envio['usuario_creador_id'])) {
@@ -372,7 +373,6 @@ class EnvioMuestraWebController extends Controller
                 if ($responseUsuario->successful()) {
                     $usuario = $responseUsuario->json();
                     $correoUsuarioCreador = $usuario['correo'] ?? null;
-                    Log::info("Correo del usuario creador encontrado: {$correoUsuarioCreador}");
                 }
             }
             
@@ -383,7 +383,6 @@ class EnvioMuestraWebController extends Controller
                 if ($responseUsuario->successful()) {
                     $usuario = $responseUsuario->json();
                     $correoResponsableToma = $usuario['correo'] ?? null;
-                    Log::info("Correo del responsable de toma encontrado: {$correoResponsableToma}");
                 }
             }
             
@@ -399,6 +398,18 @@ class EnvioMuestraWebController extends Controller
             // Actualizar el estado de enviado_por_correo en la base de datos si se solicita
             if ($request->has('actualizar_estado') && $request->actualizar_estado == 1) {
                 $this->actualizarEstadoEnviado($id);
+            }
+
+            // Enviar notificación push al responsable de toma (quien creó la planilla)
+            $usuarioNotificarId = $envio['responsable_toma_id'] ?? null;
+            if (!empty($usuarioNotificarId)) {
+                $this->enviarNotificacionPush(
+                    $usuarioNotificarId,
+                    'Envío exitoso',
+                    'Se envió la planilla al laboratorio - ' . ($envio['codigo'] ?? 'Sin código')
+                );
+            } else {
+                Log::warning('No se pudo enviar notificación push: no se encontró responsable_toma_id en el envío');
             }
             
             // Si es una solicitud AJAX, devolver respuesta JSON
@@ -430,15 +441,12 @@ class EnvioMuestraWebController extends Controller
                 'enviado_por_correo' => true
             ];
             
-            // Actualizar en la API
-            $response = $this->apiService->put("envio-muestras/{$id}/actualizar-estado-correo", $datos);
+            // Actualizar en la API usando el endpoint general de actualización
+            $response = $this->apiService->put("envio-muestras/{$id}", $datos);
             
             if (!$response->successful()) {
-                Log::error('Error al actualizar estado de envío por correo: ' . $response->status());
                 return false;
             }
-            
-            Log::info("Estado de envío por correo actualizado correctamente para ID: {$id}");
             return true;
         } catch (\Exception $e) {
             Log::error('Error al actualizar estado de envío por correo: ' . $e->getMessage());
@@ -475,6 +483,38 @@ class EnvioMuestraWebController extends Controller
         return $pdf;
     }
 
+    /**
+     * Enviar notificación push al usuario que creó la planilla
+     */
+    private function enviarNotificacionPush($userId, $title, $body)
+    {
+        try {
+            $token = session('token');
+
+            if (!$token) {
+                Log::warning('No se pudo enviar notificación push: token de sesión no encontrado');
+                return;
+            }
+
+            $apiBaseUrl = 'http://fnpvi.nacerparavivir.org/api';
+
+            // Enviar la notificación directamente (mismo flujo que la página de notificaciones)
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->post($apiBaseUrl . '/notifications/send-to-user', [
+                    'user_id' => (string) $userId,
+                    'title' => $title,
+                    'body' => $body,
+                    'data' => [
+                        'sent_by' => session('usuario.nombre', 'Sistema'),
+                        'sent_at' => now()->toIso8601String()
+                    ]
+                ]);
+        } catch (\Exception $e) {
+            Log::error('Error al enviar notificación push: ' . $e->getMessage());
+        }
+    }
+
     // Método para enviar el email con el PDF adjunto
     private function enviarEmailConPdf($pdf, $envio, $nombreSede, $correoResponsableToma = null, $correoUsuarioCreador = null)
     {
@@ -489,13 +529,11 @@ class EnvioMuestraWebController extends Controller
         // Agregar el correo del responsable de toma si existe y no está ya en la lista
         if ($correoResponsableToma && !in_array($correoResponsableToma, $destinatarios)) {
             $destinatarios[] = $correoResponsableToma;
-            Log::info("Agregando correo del responsable de toma: {$correoResponsableToma}");
         }
         
         // Agregar el correo del usuario creador si existe y no está ya en la lista
         if ($correoUsuarioCreador && !in_array($correoUsuarioCreador, $destinatarios)) {
             $destinatarios[] = $correoUsuarioCreador;
-            Log::info("Agregando correo del usuario creador: {$correoUsuarioCreador}");
         }
         
         // Nombre del archivo
@@ -517,8 +555,5 @@ class EnvioMuestraWebController extends Controller
                 'mime' => 'application/pdf',
             ]);
         });
-        
-        // Log para verificar que se envió correctamente
-        Log::info("Email enviado a: " . implode(', ', $destinatarios));
     }
 }

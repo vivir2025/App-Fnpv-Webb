@@ -12,6 +12,7 @@ use App\Http\Controllers\FindriskExportController;
 use App\Http\Controllers\AfinamientoExportController;
 use App\Http\Controllers\TamizajeExportController;
 use App\Http\Controllers\LogViewController;
+use App\Http\Controllers\NotificationWebController;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Middleware\ApiAuthentication;
 use App\Http\Middleware\AdminOnly;
@@ -118,6 +119,20 @@ Route::middleware([ApiAuthentication::class, AdminOnly::class])->group(function 
         Route::get('/stats', [LogViewController::class, 'getStats'])->name('stats');
         Route::get('/data', [LogViewController::class, 'getData'])->name('data');
         Route::get('/{id}', [LogViewController::class, 'show'])->name('show');
+    });
+
+    // ✅ RUTAS DE NOTIFICACIONES - SOLO PARA ADMINISTRADORES
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationWebController::class, 'index'])->name('index');
+        Route::get('/stats', [NotificationWebController::class, 'getStats'])->name('stats');
+        Route::get('/users', [NotificationWebController::class, 'getUsers'])->name('users');
+        Route::post('/send-to-user', [NotificationWebController::class, 'sendToUser'])->name('send.user');
+        Route::post('/send-to-all', [NotificationWebController::class, 'sendToAll'])->name('send.all');
+        
+        // 📋 NUEVAS RUTAS PARA LISTAR USUARIOS CON TOKENS
+        Route::get('/users-with-tokens', [NotificationWebController::class, 'getUsersWithTokens'])->name('users.with.tokens');
+        Route::get('/token-stats', [NotificationWebController::class, 'getTokenStats'])->name('token.stats');
+        Route::get('/user/{userId}/tokens', [NotificationWebController::class, 'getUserTokens'])->name('user.tokens');
     });
 });
 

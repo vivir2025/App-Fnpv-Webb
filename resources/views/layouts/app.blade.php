@@ -413,6 +413,12 @@
                                 <span>Logs del Sistema</span>
                             </a>
                         </li>
+                        <li class="nav-item {{ request()->routeIs('notifications.*') ? 'menu-open' : '' }}">
+                            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
+                                <i class="fas fa-bell"></i>
+                                <span>Notificaciones</span>
+                            </a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link submenu-toggle {{ request()->routeIs('reportes.*') || request()->routeIs('visitas.export') ? 'active' : '' }}" href="#" onclick="toggleSubmenu(event, this)">
                                 <i class="fas fa-chart-bar"></i>
